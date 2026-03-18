@@ -1,8 +1,8 @@
 import os
 import unittest
 from datetime import datetime, timedelta
-from unittest import mock
 from typing import List, Optional
+from unittest import mock
 
 from src.domain.models import Tender, TenderRepository
 from src.application.services import SearchActiveTenders
@@ -10,10 +10,12 @@ from src.infrastructure.repositories import SocrataTenderRepository
 
 
 class MockTenderRepository(TenderRepository):
-    def search_by_criteria(self,
-                           max_budget: float,
-                           department: Optional[str] = None,
-                           limit: int = 1000) -> List[Tender]:
+    def search_by_criteria(
+        self,
+        max_budget: float,
+        department: Optional[str] = None,
+        limit: int = 1000,
+    ) -> List[Tender]:
         return [
             Tender(
                 id="MOCK-001",
@@ -25,7 +27,7 @@ class MockTenderRepository(TenderRepository):
                 publish_date=datetime.now(),
                 closing_date=datetime.now() + timedelta(days=5),
                 url="http://mock.com",
-                department="Bogotá"
+                department="Bogotá",
             )
         ]
 
@@ -49,16 +51,16 @@ class TestHexagonalArchitecture(unittest.TestCase):
         tender = Tender(
             id="1", reference="REF-01", entity="Test", name="T", description="D", base_price=100,
             publish_date=datetime.now(),
-            closing_date=datetime.now() + timedelta(days=1), # Future
-            url="http"
+            closing_date=datetime.now() + timedelta(days=1),
+            url="http",
         )
         self.assertTrue(tender.is_active)
 
         expired_tender = Tender(
             id="2", reference="REF-02", entity="Test", name="T", description="D", base_price=100,
             publish_date=datetime.now(),
-            closing_date=datetime.now() - timedelta(days=1), # Past
-            url="http"
+            closing_date=datetime.now() - timedelta(days=1),
+            url="http",
         )
         self.assertFalse(expired_tender.is_active)
 
@@ -120,6 +122,17 @@ class TestInfrastructureAdapter(unittest.TestCase):
             [call.kwargs["params"]["$offset"] for call in session.get.call_args_list],
             [0, 2],
         )
+
+    def test_map_raw_records_returns_sorted_tenders(self):
+        repo = SocrataTenderRepository(session=mock.Mock())
+        raw_records = [
+            self._raw_item("1", "Servicios cloud y ciberseguridad", "2026-12-31T00:00:00.000"),
+            self._raw_item("2", "Desarrollo de software a la medida", "2026-12-25T00:00:00.000"),
+        ]
+
+        mapped_tenders = repo.map_raw_records(raw_records)
+
+        self.assertEqual([tender.id for tender in mapped_tenders], ["2", "1"])
 
     def test_repository_rejects_unsupported_department_filter(self):
         repo = SocrataTenderRepository(session=mock.Mock())

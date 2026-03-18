@@ -1,10 +1,11 @@
 import unittest
+
 from secop_extractor import SecopExtractor
+
 
 class TestSecopExtractor(unittest.TestCase):
     def setUp(self):
         self.extractor = SecopExtractor()
-        # Mock data with different scenarios
         self.mock_data = [
             {
                 "entidad": "SUCCESSFUL IT ENTITY",
@@ -26,7 +27,7 @@ class TestSecopExtractor(unittest.TestCase):
                 "nombre_del_procedimiento": "Sistemas de Computo",
                 "urlproceso": "http://secop.gov.co/3"
             },
-             {
+            {
                 "entidad": "UPPERCASE IT ENTITY",
                 "precio_base": "95000000",
                 "nombre_del_procedimiento": "DESARROLLO DE SOFTWARE",
@@ -38,10 +39,9 @@ class TestSecopExtractor(unittest.TestCase):
     def test_semantic_filtering_success(self):
         """Validates that IT processes are correctly identified."""
         results = self.extractor.process_data(self.mock_data)
-        
-        # Must pass: SUCCESSFUL IT ENTITY, IT ENTITY NO DESC, UPPERCASE IT ENTITY
+
         self.assertEqual(len(results), 3)
-        entities = [r['entity'] for r in results]
+        entities = [item["entity"] for item in results]
         self.assertIn("SUCCESSFUL IT ENTITY", entities)
         self.assertIn("UPPERCASE IT ENTITY", entities)
         self.assertNotIn("NON-IT ENTITY", entities)
@@ -51,14 +51,13 @@ class TestSecopExtractor(unittest.TestCase):
         incomplete_data = [{"entidad": "TEST", "nombre_del_procedimiento": "Software"}]
         results = self.extractor.process_data(incomplete_data)
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]['entity'], "TEST")
+        self.assertEqual(results[0]["entity"], "TEST")
 
     def test_price_conversion(self):
         """Validates that price is converted to float and used for sorting."""
         results = self.extractor.process_data(self.mock_data)
-        # The first element must be the highest price (95,000,000)
-        self.assertEqual(results[0]['base_price'], 95000000.0)
-        self.assertIsInstance(results[0]['base_price'], float)
+        self.assertEqual(results[0]["base_price"], 95000000.0)
+        self.assertIsInstance(results[0]["base_price"], float)
 
 if __name__ == "__main__":
     unittest.main()

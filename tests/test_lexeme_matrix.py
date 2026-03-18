@@ -1,6 +1,8 @@
 import unittest
+
 from src.infrastructure.constants import IT_KEYWORD_PATTERN
 from src.infrastructure.repositories import SocrataTenderRepository
+
 
 class TestLexemeMatrixConformity(unittest.TestCase):
     """
@@ -10,8 +12,7 @@ class TestLexemeMatrixConformity(unittest.TestCase):
 
     def setUp(self):
         self.repository = SocrataTenderRepository()
-        
-        # 1. Positive Samples: These MUST match the matrix
+
         self.positive_samples = [
             "Desarrollo de software a la medida",
             "Mantenimiento preventivo de hardware",
@@ -30,7 +31,6 @@ class TestLexemeMatrixConformity(unittest.TestCase):
             "Infraestructura crítica y hardening de servidores"
         ]
 
-        # 2. Negative Samples: These MUST NOT match the matrix
         self.negative_samples = [
             "Suministro de papelería y útiles de oficina",
             "Mantenimiento de zonas verdes y jardinería",
@@ -68,31 +68,27 @@ class TestLexemeMatrixConformity(unittest.TestCase):
         when mapping raw data to domain entities.
         """
         raw_data = []
-        # Create raw items for all samples
         for i, text in enumerate(self.positive_samples + self.negative_samples):
             raw_data.append({
-                'id_del_proceso': f"ID-{i}",
-                'nombre_del_procedimiento': text,
-                'descripci_n_del_procedimiento': f"Description for {text}",
-                'precio_base': "1000000",
-                'fecha_de_publicacion_del': '2026-01-01T00:00:00.000',
-                'fecha_de_recepcion_de': '2026-12-31T00:00:00.000',
-                'entidad': 'Test Entity',
-                'urlproceso': 'http://test.com'
+                "id_del_proceso": f"ID-{i}",
+                "nombre_del_procedimiento": text,
+                "descripci_n_del_procedimiento": f"Description for {text}",
+                "precio_base": "1000000",
+                "fecha_de_publicacion_del": "2026-01-01T00:00:00.000",
+                "fecha_de_recepcion_de": "2026-12-31T00:00:00.000",
+                "entidad": "Test Entity",
+                "urlproceso": "http://test.com",
             })
 
-        # Process through repository mapping
-        mapped_results = self.repository._map_to_domain(raw_data)
+        mapped_results = self.repository.map_raw_records(raw_data)
 
-        # Assertions
         expected_count = len(self.positive_samples)
         self.assertEqual(
-            len(mapped_results), 
+            len(mapped_results),
             expected_count,
             f"Expected {expected_count} IT results, but got {len(mapped_results)}"
         )
 
-        # Verify that all results are indeed from the positive list
         for tender in mapped_results:
             self.assertIn(tender.name, self.positive_samples)
 
@@ -101,13 +97,6 @@ class TestLexemeMatrixConformity(unittest.TestCase):
         Ensures that keywords don't trigger false positives by matching 
         parts of unrelated words (e.g., 'ia' in 'industria').
         """
-        false_positive_candidates = [
-            "Industria manufacturera", # 'ia' is inside 'Industria'
-            "Asmático",                # 'tic' is inside 'Asmático'
-            "Ecléctico",               # 'tic' is inside 'Ecléctico'
-            "Software-less approach"    # Should match because of word boundary
-        ]
-        
         self.assertFalse(IT_KEYWORD_PATTERN.search("Industria"))
         self.assertFalse(IT_KEYWORD_PATTERN.search("Asmático"))
         self.assertTrue(IT_KEYWORD_PATTERN.search("Software-less"))

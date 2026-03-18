@@ -1,6 +1,7 @@
 from typing import List, Optional
-from src.domain.models import Tender, TenderRepository
+
 from src.application.validators import normalize_department
+from src.domain.models import Tender, TenderRepository
 
 class SearchActiveTenders:
     """Use Case: Search for active business opportunities filtered by budget and location."""
@@ -29,5 +30,5 @@ class SearchActiveTenders:
 
         return self.repository.search_by_criteria(
             max_budget=budget,
-            department=normalized_department
+            department=normalized_department,
         )

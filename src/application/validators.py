@@ -1,7 +1,8 @@
 from typing import Optional
 
+DEFAULT_DEPARTMENT = "Todos"
 ALLOWED_DEPARTMENTS = (
-    "Todos",
+    DEFAULT_DEPARTMENT,
     "Distrito Capital de Bogotá",
     "Antioquia",
     "Valle del Cauca",
@@ -14,11 +15,11 @@ ALLOWED_DEPARTMENTS = (
 def normalize_department(department: Optional[str]) -> str:
     """Validates and normalizes the department filter accepted by the UI."""
     if department is None:
-        return "Todos"
+        return DEFAULT_DEPARTMENT
 
     normalized = department.strip()
-    if not normalized or normalized == "Todos":
-        return "Todos"
+    if not normalized or normalized == DEFAULT_DEPARTMENT:
+        return DEFAULT_DEPARTMENT
 
     if normalized not in ALLOWED_DEPARTMENTS:
         raise ValueError("Unsupported department filter")

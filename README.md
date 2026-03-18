@@ -5,7 +5,7 @@
 ## Features
 
 - **Hexagonal Architecture**: Strict separation between Domain, Application, and Infrastructure layers.
-- **Advanced Filtering**: Uses a high-fidelity Regex matrix to identify IT-specific tenders (Software, Cloud, Cybersec, etc.).
+- **Advanced Filtering**: Uses a high-fidelity regex matrix to identify IT-specific tenders (software, cloud, cybersecurity, etc.).
 - **Clean Code**: Fully refactored to standard English (en_US) and SOLID principles.
 - **Security**: Validated inputs, bounded filters, and trusted host restriction.
 
@@ -29,7 +29,7 @@ requirements.txt      # Runtime and test dependencies
 
 - Python 3.9+
 - Pip
-- Virtual Environment (recommended)
+- Virtual environment (recommended)
 
 ### Installation
 

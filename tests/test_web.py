@@ -4,12 +4,14 @@ from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 
+from src.application.validators import normalize_department
 from src.domain.models import Tender
 from src.presentation.web import app, get_tender_service
 
 
 class StubTenderService:
     def execute(self, budget: float, department: str | None = None):
+        normalized_department = normalize_department(department)
         return [
             Tender(
                 id="WEB-001",
@@ -21,7 +23,7 @@ class StubTenderService:
                 publish_date=datetime.now(),
                 closing_date=datetime.now() + timedelta(days=7),
                 url="https://example.test/process/WEB-001",
-                department=department,
+                department=normalized_department,
             )
         ]
 
@@ -59,7 +61,7 @@ class TestWebInterface(unittest.TestCase):
         response = self.client.get("/search?budget=100000000&department=DROP%20TABLE")
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("Unsupported department filter", response.text)
+        self.assertIn("El filtro de departamento seleccionado no es válido.", response.text)
 
     def test_template_exists(self):
         self.assertTrue(os.path.exists("templates/index.html"))

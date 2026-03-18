@@ -1,6 +1,6 @@
-from dataclasses import dataclass
-from typing import List, Protocol, Optional
 from datetime import datetime
+from dataclasses import dataclass
+from typing import List, Optional, Protocol
 
 @dataclass
 class Tender:
@@ -24,8 +24,11 @@ class Tender:
 
 class TenderRepository(Protocol):
     """Port (Interface) for Tender data access."""
-    def search_by_criteria(self, 
-                           max_budget: float, 
-                           department: Optional[str] = None, 
-                           limit: int = 1000) -> List[Tender]:
+
+    def search_by_criteria(
+        self,
+        max_budget: float,
+        department: Optional[str] = None,
+        limit: int = 1000,
+    ) -> List[Tender]:
         ...

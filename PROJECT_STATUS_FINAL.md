@@ -1,7 +1,7 @@
 # RNS (RNS Not Secop) - IT Radar V2.0
 
 ## 1. Executive Summary
-**RNS (Radar TI)** is a specialized technology vigilance tool designed to automate the identification of public procurement opportunities in Colombia, specifically within the IT sector. The project now exposes its web application from the declared `src/presentation` layer and keeps a thin `main.py` entrypoint for deployment.
+**RNS (IT Radar)** is a specialized technology vigilance tool designed to automate the identification of public procurement opportunities in Colombia, specifically within the IT sector. The project now exposes its web application from the declared `src/presentation` layer and keeps a thin `main.py` entrypoint for deployment.
 
 ## 2. Technical Validation
 | Component | Status | Validation |
@@ -25,7 +25,7 @@ To run the production version:
 source venv/bin/activate
 
 # 2. Install dependencies (if necessary)
-pip install fastapi uvicorn requests jinja2 pydantic
+pip install -r requirements.txt
 
 # 3. Launch server (Port 8000)
 uvicorn main:app --host 127.0.0.1 --port 8000 --reload
