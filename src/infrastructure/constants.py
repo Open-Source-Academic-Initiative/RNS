@@ -20,7 +20,7 @@ IT_KEYWORD_PATTERN = re.compile(
     r'apache|nginx|php|python|javascript|typescript|backend|frontend|fullstack|rest|microservicios|monolito|'
     r'postgresql|mysql|mariadb|joomla|wordpress|cms|plugin|theme|template|hosting|dominio|ssl|https|dns|ldap|'
     r'yaml|json|markdown|opensource|foss|licencia|licenciamiento|gpl|mit|apache-2.0|automatización|'
-    r'observabilidad|logging|monitoring|prometheus|grafana|elk|seguridad|hardening|firewall|selinux|apparmor|'
+    r'observabilidad|logging|monitoring|prometheus|grafana|elk|seguridad informática|seguridad de la información|seguridad digital|seguridad perimetral|seguridad de redes|hardening|firewall|selinux|apparmor|'
     r'paquete|repositorio|snap|flatpak|soluciones|aplicaciones'
     r')\b', 
     re.IGNORECASE

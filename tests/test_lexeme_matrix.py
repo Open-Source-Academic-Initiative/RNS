@@ -19,6 +19,8 @@ class TestLexemeMatrixConformity(unittest.TestCase):
             "Suscripción de servicios cloud computing",
             "Implementación de firma digital y biometría",
             "Consultoría en arquitectura empresarial y gobierno de datos",
+            "Servicios de seguridad informática y hardening de servidores",
+            "Implementación de seguridad de la información y firewall",
             "Auditoría informática y ciberseguridad",
             "Fábrica de software con metodología DevOps",
             "Análisis predictivo mediante machine learning",
@@ -37,6 +39,8 @@ class TestLexemeMatrixConformity(unittest.TestCase):
             "Prestación de servicios de vigilancia privada",
             "Compra de uniformes para personal administrativo",
             "Servicio de cafetería y alimentación",
+            "Suministro de alimentación para actividades de seguridad y convivencia",
+            "Apoyo logístico para conservación del orden público y la seguridad ciudadana",
             "Arrendamiento de vehículos de carga",
             "Construcción de obras civiles y alcantarillado",
             "Suministro de combustible para flota vehicular",
@@ -100,6 +104,8 @@ class TestLexemeMatrixConformity(unittest.TestCase):
         self.assertFalse(IT_KEYWORD_PATTERN.search("Industria"))
         self.assertFalse(IT_KEYWORD_PATTERN.search("Asmático"))
         self.assertTrue(IT_KEYWORD_PATTERN.search("Software-less"))
+        self.assertFalse(IT_KEYWORD_PATTERN.search("Seguridad y convivencia"))
+        self.assertTrue(IT_KEYWORD_PATTERN.search("Seguridad informática"))
 
 if __name__ == "__main__":
     unittest.main()
