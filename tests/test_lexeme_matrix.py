@@ -15,6 +15,7 @@ class TestLexemeMatrixConformity(unittest.TestCase):
 
         self.positive_samples = [
             "Desarrollo de software a la medida",
+            "Desarrollo tecnológico para servicios digitales del municipio",
             "Mantenimiento preventivo de hardware",
             "Suscripción de servicios cloud computing",
             "Implementación de firma digital y biometría",
@@ -39,6 +40,7 @@ class TestLexemeMatrixConformity(unittest.TestCase):
             "Prestación de servicios de vigilancia privada",
             "Compra de uniformes para personal administrativo",
             "Servicio de cafetería y alimentación",
+            "Apoyo logístico para el desarrollo de actividades de la fuerza pública",
             "Suministro de alimentación para actividades de seguridad y convivencia",
             "Apoyo logístico para conservación del orden público y la seguridad ciudadana",
             "Arrendamiento de vehículos de carga",
@@ -104,6 +106,8 @@ class TestLexemeMatrixConformity(unittest.TestCase):
         self.assertFalse(IT_KEYWORD_PATTERN.search("Industria"))
         self.assertFalse(IT_KEYWORD_PATTERN.search("Asmático"))
         self.assertTrue(IT_KEYWORD_PATTERN.search("Software-less"))
+        self.assertFalse(IT_KEYWORD_PATTERN.search("Desarrollo de actividades de control y vigilancia"))
+        self.assertTrue(IT_KEYWORD_PATTERN.search("Desarrollo de software empresarial"))
         self.assertFalse(IT_KEYWORD_PATTERN.search("Seguridad y convivencia"))
         self.assertTrue(IT_KEYWORD_PATTERN.search("Seguridad informática"))
 

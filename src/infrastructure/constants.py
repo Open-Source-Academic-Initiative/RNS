@@ -3,7 +3,7 @@ import re
 # Extensive Matrix of IT Lexemes (High Fidelity Architecture V2.4)
 IT_KEYWORD_PATTERN = re.compile(
     r'\b('
-    r'software|informátic[ao]|sistemas|computación|desarrollo|web|api|datos|programación|cloud|nube|tecnologí[ao]s de la información|tic|ciberseguridad|machine learning|hardware|'
+    r'software|informátic[ao]|sistemas|computación|desarrollo web|desarrollo de software|desarrollo tecnológico|web|api|datos|programación|cloud|nube|tecnologí[ao]s de la información|tic|ciberseguridad|machine learning|hardware|'
     r'i\+d\+i|investigación aplicada|investigación y desarrollo|ciencia de datos|análisis predictivo|algoritmos|inteligencia artificial|ia|'
     r'innovación abierta|gestión tecnológica|prospectiva tecnológica|vigilancia tecnológica|transferencia de tecnología|madurez tecnológica|trl|'
     r'prototipado|mvp|prueba de concepto|poc|fábrica de software|laboratorio de innovación|sandbox|'
