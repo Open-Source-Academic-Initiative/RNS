@@ -1,0 +1,6 @@
+fastapi
+httpx
+jinja2
+pydantic
+requests
+uvicorn

@@ -1,94 +1,36 @@
-import requests
-from datetime import datetime
-import re
-import json
+from src.infrastructure.repositories import SocrataTenderRepository
 
 class SecopExtractor:
-    def __init__(self):
-        self.base_url = "https://www.datos.gov.co/resource/p6dx-8zbt.json"
+    """Compatibility CLI wrapper over the shared repository implementation."""
+
+    def __init__(self, repository=None):
+        self.repository = repository or SocrataTenderRepository()
+        self.base_url = self.repository.BASE_URL
         self.dataset_id = "p6dx-8zbt"
-        # IT Keyword Matrix
-        self.it_pattern = re.compile(r'\b(software|informátic[ao]|sistemas|computación|desarrollo web|api|datos|programación|cloud|nube|tecnologí[ao]s de la información|tic|ciberseguridad|machine learning|hardware)\b', re.IGNORECASE)
 
     def fetch_data(self, max_budget=100000000, department=None, limit=1000):
-        """
-        Query aligned with the technical column name: fecha_de_recepcion_de.
-        """
-        # Current date to validate active processes
-        today_iso = datetime.now().strftime('%Y-%m-%dT00:00:00.000')
-        
-        # Robust filter: fecha_de_recepcion_de
-        where_clause = (
-            f"precio_base <= {max_budget} "
-            f"AND estado_de_apertura_del_proceso = 'Abierto' "
-            f"AND fecha_de_recepcion_de >= '{today_iso}'"
+        """Fetches raw records using the shared repository query logic."""
+        return self.repository.fetch_raw_records(
+            max_budget=max_budget,
+            department=department,
+            limit=limit,
         )
-        
-        if department and department != "Todos":
-            where_clause += f" AND departamento_entidad = '{department}'"
-
-        params = {
-            "$where": where_clause,
-            "$limit": limit
-        }
-        
-        headers = {
-            'User-Agent': 'Mozilla/5.0'
-        }
-
-        try:
-            print(f"DEBUG: Querying SODA API with budget <= {max_budget}...")
-            response = requests.get(self.base_url, params=params, headers=headers, timeout=30)
-            
-            if response.status_code == 200:
-                data = response.json()
-                print(f"DEBUG: API responded successfully with {len(data)} raw records.")
-                return data
-            else:
-                print(f"API ERROR: {response.status_code} - {response.text[:100]}")
-                return []
-        except Exception as e:
-            print(f"NETWORK EXCEPTION: {e}")
-            return []
 
     def process_data(self, raw_data):
-        """
-        Applies semantic filtering and data cleaning without depending on pandas.
-        """
+        """Applies the shared semantic mapping and adapts the result for CLI output."""
         final_results = []
-        
-        for item in raw_data:
-            # Get and normalize critical fields
-            name = item.get('nombre_del_procedimiento', '')
-            description = item.get('descripci_n_del_procedimiento', '')
-            entity = item.get('entidad', 'N/A')
-            url = item.get('urlproceso', 'N/A')
-            
-            try:
-                price = float(item.get('precio_base', 0))
-            except ValueError:
-                price = 0.0
 
-            # Heuristic concatenation for semantic search
-            analysis_text = f"{name} {description}"
+        tenders = self.repository._map_to_domain(raw_data)
+        for tender in sorted(tenders, key=lambda item: item.base_price, reverse=True):
+            final_results.append({
+                "entity": tender.entity,
+                "publish_date": tender.publish_date.strftime("%Y-%m-%d"),
+                "closing_date": tender.closing_date.strftime("%Y-%m-%d"),
+                "base_price": tender.base_price,
+                "name": tender.name,
+                "url": tender.url,
+            })
 
-            # Filter by IT Regex
-            if self.it_pattern.search(analysis_text):
-                # Clean dates (ISO 8601 to YYYY-MM-DD)
-                pub_date = item.get('fecha_de_publicacion_del', 'N/A').split('T')[0]
-                closing_date = item.get('fecha_de_recepcion_de', 'N/A').split('T')[0]
-                
-                final_results.append({
-                    'entity': entity,
-                    'publish_date': pub_date,
-                    'closing_date': closing_date,
-                    'base_price': price,
-                    'name': name,
-                    'url': url
-                })
-
-        # Sort by price descending
-        final_results.sort(key=lambda x: x['base_price'], reverse=True)
         return final_results
 
 if __name__ == "__main__":

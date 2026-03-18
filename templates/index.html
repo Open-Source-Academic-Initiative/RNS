@@ -32,13 +32,9 @@
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-sm font-medium text-slate-600 mb-1">Departamento</label>
                     <select name="department" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
-                        <option value="Todos" {% if department_sel == 'Todos' %}selected{% endif %}>Todos (Nacional)</option>
-                        <option value="Distrito Capital de Bogotá" {% if department_sel == 'Distrito Capital de Bogotá' %}selected{% endif %}>Bogotá D.C.</option>
-                        <option value="Antioquia" {% if department_sel == 'Antioquia' %}selected{% endif %}>Antioquia (Medellín)</option>
-                        <option value="Valle del Cauca" {% if department_sel == 'Valle del Cauca' %}selected{% endif %}>Valle del Cauca (Cali)</option>
-                        <option value="Atlantico" {% if department_sel == 'Atlantico' %}selected{% endif %}>Atlántico (Barranquilla)</option>
-                        <option value="Santander" {% if department_sel == 'Santander' %}selected{% endif %}>Santander</option>
-                        <option value="Cundinamarca" {% if department_sel == 'Cundinamarca' %}selected{% endif %}>Cundinamarca</option>
+                        {% for option in departments %}
+                        <option value="{{ option.value }}" {% if department_sel == option.value %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
@@ -46,6 +42,12 @@
                     🔍 Buscar
                 </button>
             </form>
+
+            {% if error %}
+            <div class="mt-4 bg-rose-50 border-l-4 border-rose-400 p-4 rounded shadow-sm">
+                <p class="text-sm text-rose-700 font-medium">{{ error }}</p>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Resultados -->

@@ -7,7 +7,7 @@
 - **Hexagonal Architecture**: Strict separation between Domain, Application, and Infrastructure layers.
 - **Advanced Filtering**: Uses a high-fidelity Regex matrix to identify IT-specific tenders (Software, Cloud, Cybersec, etc.).
 - **Clean Code**: Fully refactored to standard English (en_US) and SOLID principles.
-- **Security**: OWASP compliant input validation and host restriction.
+- **Security**: Validated inputs, bounded filters, and trusted host restriction.
 
 ## Project Structure
 
@@ -17,6 +17,10 @@ src/
 ├── application/      # Application Business Rules (Use Cases)
 ├── infrastructure/   # Interface Adapters (API Clients, Repositories)
 └── presentation/     # Frameworks & Drivers (FastAPI, Templates)
+
+main.py               # Thin ASGI entrypoint importing the presentation layer
+secop_extractor.py    # Compatibility CLI wrapper over the shared repository
+requirements.txt      # Runtime and test dependencies
 ```
 
 ## Getting Started
@@ -43,7 +47,7 @@ src/
 
 3.  Install dependencies:
     ```bash
-    pip install fastapi uvicorn requests jinja2 pydantic
+    pip install -r requirements.txt
     ```
 
 ### Running the Application
@@ -61,7 +65,8 @@ Navigate to `http://localhost:8000` to view the dashboard.
 Run the unit and integration tests:
 
 ```bash
-python -m unittest discover tests
+python -m unittest discover tests -v
+python validate_app.py
 python test_secop.py
 ```
 
