@@ -1,62 +1,37 @@
-import re
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional
-from src.domain.models import Licitacion, LicitacionRepository
+from src.domain.models import Tender, TenderRepository
+from src.infrastructure.constants import IT_KEYWORD_PATTERN
 
-class SocrataLicitacionRepository(LicitacionRepository):
-    """Adaptador de Infraestructura para consumir la API de Socrata (SECOP II)"""
+class SocrataTenderRepository(TenderRepository):
+    """Infrastructure Adapter: Consumes the Socrata API (SECOP II) to fetch tenders."""
     
-    URL_BASE = "https://www.datos.gov.co/resource/p6dx-8zbt.json"
+    BASE_URL = "https://www.datos.gov.co/resource/p6dx-8zbt.json"
     
-    # Matriz Extensa de Lexemas TI (Arquitectura de Alta Fidelidad V2.4)
-    PATRON_TI = re.compile(
-        r'\b('
-        r'software|informátic[ao]|sistemas|computación|desarrollo|web|api|datos|programación|cloud|nube|tecnologí[ao]s de la información|tic|ciberseguridad|machine learning|hardware|'
-        r'i\+d\+i|investigación aplicada|investigación y desarrollo|ciencia de datos|análisis predictivo|algoritmos|inteligencia artificial|ia|'
-        r'innovación abierta|gestión tecnológica|prospectiva tecnológica|vigilancia tecnológica|transferencia de tecnología|madurez tecnológica|trl|'
-        r'prototipado|mvp|prueba de concepto|poc|fábrica de software|laboratorio de innovación|sandbox|'
-        r'gestión del conocimiento|propiedad intelectual|patente|derecho de autor|licenciamiento abierto|creative commons|repositorio digital|'
-        r'transformación digital|hoja de ruta|roadmap tecnológico|estándares técnicos|interoperabilidad|analítica avanzada|'
-        r'diseño web|página web|sitio web|portal web|e-commerce|tienda virtual|interfaz|ux/ui|'
-        r'firma digital|certificado digital|biometría|identidad digital|autenticación|'
-        r'consultoría especializada|asesoría técnica|apoyo a la gestión tics|arquitectura empresarial|gobierno de datos|auditoría informática|'
-        r'mantenimiento preventivo|mantenimiento correctivo|soporte técnico|mesa de ayuda|help desk|reparación|'
-        r'adquisición de licencias|suscripción de software|compra de equipos|suministro tecnológico|renovación tecnológica|'
-        r'linux|gnu|ubuntu|debian|redhat|rhel|fedora|centos|kernel|bash|shell|terminal|'
-        r'sysadmin|devops|sre|kubernetes|k8s|openshift|container|docker|podman|oci|helm|operator|cluster|node|pod|namespace|ingress|service|deployment|configmap|secret|'
-        r'ci/cd|git|gitlab|github|pipeline|iac|ansible|terraform|virtualización|kvm|xen|qemu|'
-        r'apache|nginx|php|python|javascript|typescript|backend|frontend|fullstack|rest|microservicios|monolito|'
-        r'postgresql|mysql|mariadb|joomla|wordpress|cms|plugin|theme|template|hosting|dominio|ssl|https|dns|ldap|'
-        r'yaml|json|markdown|opensource|foss|licencia|licenciamiento|gpl|mit|apache-2.0|automatización|'
-        r'observabilidad|logging|monitoring|prometheus|grafana|elk|seguridad|hardening|firewall|selinux|apparmor|'
-        r'paquete|repositorio|snap|flatpak|soluciones|aplicaciones'
-        r')\b', 
-        re.IGNORECASE
-    )
-
-    def buscar_por_criterios(self, 
-                             presupuesto_max: float, 
-                             departamento: Optional[str] = None, 
-                             limite: int = 1000) -> List[Licitacion]:
+    def search_by_criteria(self, 
+                           max_budget: float, 
+                           department: Optional[str] = None, 
+                           limit: int = 1000) -> List[Tender]:
         """
-        Consulta la API de Socrata aplicando filtros de negocio y mapea a Entidades de Dominio.
+        Queries the Socrata API applying business filters and maps results to Domain Entities.
         """
-        hoy_iso = datetime.now().strftime('%Y-%m-%dT00:00:00.000')
+        today_iso = datetime.now().strftime('%Y-%m-%dT00:00:00.000')
         
-        # Filtro SoQL Alineado al Marco Metodológico (Apertura + Vigencia)
+        # SoQL Filter Aligned with Methodological Framework (Open Status + Active Validity)
+        # Note: API column names (Spanish) must match the remote dataset schema.
         where_clause = (
-            f"precio_base <= {presupuesto_max} "
+            f"precio_base <= {max_budget} "
             f"AND estado_de_apertura_del_proceso = 'Abierto' "
-            f"AND fecha_de_recepcion_de >= '{hoy_iso}'"
+            f"AND fecha_de_recepcion_de >= '{today_iso}'"
         )
         
-        if departamento and departamento != "Todos":
-            where_clause += f" AND departamento_entidad = '{departamento}'"
+        if department and department != "Todos":
+            where_clause += f" AND departamento_entidad = '{department}'"
 
         params = {
             "$where": where_clause,
-            "$limit": limite
+            "$limit": limit
         }
         
         headers = {
@@ -64,52 +39,52 @@ class SocrataLicitacionRepository(LicitacionRepository):
         }
 
         try:
-            response = requests.get(self.URL_BASE, params=params, headers=headers, timeout=30)
+            response = requests.get(self.BASE_URL, params=params, headers=headers, timeout=30)
             response.raise_for_status()
             data = response.json()
-            return self._mapear_a_dominio(data)
+            return self._map_to_domain(data)
         except requests.exceptions.RequestException as e:
-            print(f"Error de Infraestructura (Socrata): {e}")
+            print(f"Infrastructure Error (Socrata): {e}")
             return []
 
-    def _mapear_a_dominio(self, data: List[dict]) -> List[Licitacion]:
-        resultados = []
+    def _map_to_domain(self, data: List[dict]) -> List[Tender]:
+        results = []
         for item in data:
-            nombre = item.get('nombre_del_procedimiento', '')
-            descripcion = item.get('descripci_n_del_procedimiento', '')
-            texto_analisis = f"{nombre} {descripcion}"
+            name = item.get('nombre_del_procedimiento', '')
+            description = item.get('descripci_n_del_procedimiento', '')
+            analysis_text = f"{name} {description}"
 
-            # Filtrado de Dominio (TI Only)
-            if self.PATRON_TI.search(texto_analisis):
+            # Domain Filtering (IT Only)
+            if IT_KEYWORD_PATTERN.search(analysis_text):
                 try:
-                    # Extracción y limpieza segura de fechas
-                    f_pub_str = item.get('fecha_de_publicacion_del', '').split('T')[0]
-                    f_cierre_str = item.get('fecha_de_recepcion_de', '').split('T')[0]
+                    # Safe date extraction and cleaning
+                    pub_date_str = item.get('fecha_de_publicacion_del', '').split('T')[0]
+                    closing_date_str = item.get('fecha_de_recepcion_de', '').split('T')[0]
                     
-                    f_pub = datetime.strptime(f_pub_str, '%Y-%m-%d') if f_pub_str else datetime.min
-                    f_cierre = datetime.strptime(f_cierre_str, '%Y-%m-%d') if f_cierre_str else datetime.max
+                    pub_date = datetime.strptime(pub_date_str, '%Y-%m-%d') if pub_date_str else datetime.min
+                    closing_date = datetime.strptime(closing_date_str, '%Y-%m-%d') if closing_date_str else datetime.max
                     
-                    # Extracción segura de URL (puede venir como dict o str)
+                    # Safe URL extraction (can be dict or str)
                     raw_url = item.get('urlproceso', '#')
-                    url_final = raw_url.get('url', '#') if isinstance(raw_url, dict) else raw_url
+                    final_url = raw_url.get('url', '#') if isinstance(raw_url, dict) else raw_url
 
-                    licitacion = Licitacion(
+                    tender = Tender(
                         id=item.get('id_del_proceso', 'N/A'),
-                        referencia=item.get('referencia_del_proceso', 'N/A'),
-                        entidad=item.get('entidad', 'N/A'),
-                        nombre=nombre,
-                        descripcion=descripcion,
-                        precio_base=float(item.get('precio_base', 0)),
-                        fecha_publicacion=f_pub,
-                        fecha_cierre=f_cierre,
-                        url=url_final,
-                        departamento=item.get('departamento_entidad'),
-                        estado_apertura=item.get('estado_de_apertura_del_proceso', 'Desconocido')
+                        reference=item.get('referencia_del_proceso', 'N/A'),
+                        entity=item.get('entidad', 'N/A'),
+                        name=name,
+                        description=description,
+                        base_price=float(item.get('precio_base', 0)),
+                        publish_date=pub_date,
+                        closing_date=closing_date,
+                        url=final_url,
+                        department=item.get('departamento_entidad'),
+                        status=item.get('estado_de_apertura_del_proceso', 'Unknown')
                     )
-                    resultados.append(licitacion)
-                except (ValueError, TypeError) as e:
-                    # Log de error de mapeo silenciado para no romper flujo
+                    results.append(tender)
+                except (ValueError, TypeError):
+                    # Silenced mapping error log to avoid breaking flow
                     continue
         
-        # Ordenar por Cierre (Urgencia)
-        return sorted(resultados, key=lambda x: x.fecha_cierre)
+        # Sort by Closing Date (Urgency)
+        return sorted(results, key=lambda x: x.closing_date)

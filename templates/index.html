@@ -3,61 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SECOP II - Buscador de TI</title>
+    <title>SECOP II - Radar TI</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-50 min-h-screen">
     <nav class="bg-blue-900 text-white p-4 shadow-lg">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-2xl font-bold tracking-tight">🔎 SECOP II - Radar TI</h1>
-            <span class="text-sm opacity-75">Colombia Compra Eficiente</span>
+            <span class="text-sm opacity-75">Colombia Compra Eficiente - Analítica</span>
         </div>
     </nav>
 
     <main class="container mx-auto py-8 px-4">
-        <!-- Header & Form -->
+        <!-- Encabezado y Formulario -->
         <div class="bg-white rounded-xl shadow-sm p-6 mb-8 border border-slate-200">
             <h2 class="text-xl font-semibold mb-4 text-slate-800">Parámetros de Búsqueda</h2>
-            <form action="/consultar" method="get" class="flex flex-wrap gap-4 items-end">
+            <form action="/search" method="get" class="flex flex-wrap gap-4 items-end">
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-sm font-medium text-slate-600 mb-1">Presupuesto Máximo (COP)</label>
                     <div class="relative">
                         <span class="absolute left-3 top-2 text-slate-400">$</span>
-                        <input type="number" name="presupuesto" value="{{ presupuesto or 100000000 }}" 
+                        <input type="number" name="budget" value="{{ budget or 100000000 }}" 
                                class="w-full pl-8 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                               placeholder="Ej: 100.000.000">
+                               placeholder="Ej: 100000000">
                     </div>
                 </div>
                 
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-sm font-medium text-slate-600 mb-1">Departamento</label>
-                    <select name="departamento" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
-                        <option value="Todos" {% if departamento_sel == 'Todos' %}selected{% endif %}>Todos (Nacional)</option>
-                        <option value="Distrito Capital de Bogotá" {% if departamento_sel == 'Distrito Capital de Bogotá' %}selected{% endif %}>Bogotá D.C.</option>
-                        <option value="Antioquia" {% if departamento_sel == 'Antioquia' %}selected{% endif %}>Antioquia (Medellín)</option>
-                        <option value="Valle del Cauca" {% if departamento_sel == 'Valle del Cauca' %}selected{% endif %}>Valle del Cauca (Cali)</option>
-                        <option value="Atlantico" {% if departamento_sel == 'Atlantico' %}selected{% endif %}>Atlántico (Barranquilla)</option>
-                        <option value="Santander" {% if departamento_sel == 'Santander' %}selected{% endif %}>Santander</option>
-                        <option value="Cundinamarca" {% if departamento_sel == 'Cundinamarca' %}selected{% endif %}>Cundinamarca</option>
+                    <select name="department" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="Todos" {% if department_sel == 'Todos' %}selected{% endif %}>Todos (Nacional)</option>
+                        <option value="Distrito Capital de Bogotá" {% if department_sel == 'Distrito Capital de Bogotá' %}selected{% endif %}>Bogotá D.C.</option>
+                        <option value="Antioquia" {% if department_sel == 'Antioquia' %}selected{% endif %}>Antioquia (Medellín)</option>
+                        <option value="Valle del Cauca" {% if department_sel == 'Valle del Cauca' %}selected{% endif %}>Valle del Cauca (Cali)</option>
+                        <option value="Atlantico" {% if department_sel == 'Atlantico' %}selected{% endif %}>Atlántico (Barranquilla)</option>
+                        <option value="Santander" {% if department_sel == 'Santander' %}selected{% endif %}>Santander</option>
+                        <option value="Cundinamarca" {% if department_sel == 'Cundinamarca' %}selected{% endif %}>Cundinamarca</option>
                     </select>
                 </div>
 
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-8 rounded-lg transition duration-200">
-                    🔍 Consultar
+                    🔍 Buscar
                 </button>
             </form>
         </div>
 
         <!-- Resultados -->
-        {% if resultados != None %}
+        {% if results != None %}
         
-        {% if es_simulacion %}
+        {% if is_simulation %}
         <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4 rounded shadow-sm">
             <div class="flex">
                 <div class="flex-shrink-0">⚠️</div>
                 <div class="ml-3">
                     <p class="text-sm text-amber-700 font-medium">
-                        La API de Datos Abiertos no retornó procesos reales para los últimos 3 días o la conexión fue rechazada. Mostrando datos de simulación.
+                        La API de Datos Abiertos no retornó resultados para los últimos 3 días o la conexión fue rechazada. Mostrando datos de simulación.
                     </p>
                 </div>
             </div>
@@ -66,52 +66,52 @@
 
         <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
             <div class="px-6 py-4 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
-                <h3 class="font-bold text-slate-700">Licitaciones Encontradas: {{ resultados|length }}</h3>
+                <h3 class="font-bold text-slate-700">Licitaciones Encontradas: {{ results|length }}</h3>
                 <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase">Actualizado</span>
             </div>
             
-            {% if resultados %}
+            {% if results %}
             <div class="overflow-x-auto">
-                <table class="w-full text-left" id="tablaResultados">
+                <table class="w-full text-left" id="resultsTable">
                     <thead class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold">
                         <tr>
-                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="ordenarTabla(0)">
+                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortTable(0)">
                                 Entidad / Referencia <span id="sort-0"></span>
                             </th>
-                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="ordenarTabla(1)">
+                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortTable(1)">
                                 Presupuesto <span id="sort-1"></span>
                             </th>
-                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="ordenarTabla(2)">
+                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortTable(2)">
                                 Procedimiento <span id="sort-2"></span>
                             </th>
-                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="ordenarTabla(3)">
-                                Límite Ofertas <span id="sort-3"></span>
+                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortTable(3)">
+                                Fecha de Cierre <span id="sort-3"></span>
                             </th>
                             <th class="px-6 py-3 text-right">Acción</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        {% for r in resultados %}
+                        {% for r in results %}
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="px-6 py-4 align-top">
-                                <div class="font-bold text-slate-900">{{ r.entidad }}</div>
-                                <div class="text-[10px] text-blue-500 font-mono tracking-tighter">{{ r.referencia }}</div>
+                                <div class="font-bold text-slate-900">{{ r.entity }}</div>
+                                <div class="text-[10px] text-blue-500 font-mono tracking-tighter">{{ r.reference }}</div>
                             </td>
-                            <td class="px-6 py-4 text-blue-700 font-bold align-top" data-valor="{{ r.precio_base }}">
-                                ${{ "{:,.2f}".format(r.precio_base) }}
+                            <td class="px-6 py-4 text-blue-700 font-bold align-top" data-value="{{ r.base_price }}">
+                                ${{ "{:,.2f}".format(r.base_price) }}
                             </td>
                             <td class="px-6 py-4 text-slate-600 text-sm max-w-md align-top">
                                 <div class="line-clamp-3 cursor-pointer hover:text-blue-600 transition-colors" 
-                                     onclick="abrirModal('{{ r.entidad|replace("'", "\\'") }}', '${{ "{:,.2f}".format(r.precio_base) }}', '{{ r.nombre|replace("'", "\\'")|replace("\n", " ") }}', '{{ r.fecha_cierre.strftime('%Y-%m-%d') }}')">
-                                    {{ r.nombre }}
+                                     onclick="openModal('{{ r.entity|replace("'", "\\'") }}', '${{ "{:,.2f}".format(r.base_price) }}', '{{ r.name|replace("'", "\\'")|replace("\n", " ") }}', '{{ r.closing_date.strftime('%Y-%m-%d') }}')">
+                                    {{ r.name }}
                                 </div>
-                                <button onclick="abrirModal('{{ r.entidad|replace("'", "\\'") }}', '${{ "{:,.2f}".format(r.precio_base) }}', '{{ r.nombre|replace("'", "\\'")|replace("\n", " ") }}', '{{ r.fecha_cierre.strftime('%Y-%m-%d') }}')" 
+                                <button onclick="openModal('{{ r.entity|replace("'", "\\'") }}', '${{ "{:,.2f}".format(r.base_price) }}', '{{ r.name|replace("'", "\\'")|replace("\n", " ") }}', '{{ r.closing_date.strftime('%Y-%m-%d') }}')" 
                                         class="text-xs text-blue-500 font-semibold mt-1 hover:underline">
                                     Leer más...
                                 </button>
                             </td>
                             <td class="px-6 py-4 text-orange-600 font-semibold text-sm align-top whitespace-nowrap">
-                                {{ r.fecha_cierre.strftime('%d/%m/%Y') }}
+                                {{ r.closing_date.strftime('%d/%m/%Y') }}
                             </td>
                             <td class="px-6 py-4 text-right align-top">
                                 <a href="{{ r.url }}" target="_blank" class="text-blue-600 hover:text-blue-800 font-semibold text-sm underline">
@@ -125,25 +125,25 @@
             </div>
             
             <!-- Modal Flotante -->
-            <div id="modalProcedimiento" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div id="procedureModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
                 <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
                     <div class="p-6 border-b border-slate-100 flex justify-between items-start">
                         <div>
                             <div class="flex gap-2 items-center mb-1">
-                                <h4 id="modalEntidad" class="text-xs uppercase font-bold text-blue-600"></h4>
+                                <h4 id="modalEntity" class="text-xs uppercase font-bold text-blue-600"></h4>
                                 <span class="text-slate-300">|</span>
-                                <span id="modalFecha" class="text-xs font-semibold text-slate-400"></span>
+                                <span id="modalDate" class="text-xs font-semibold text-slate-400"></span>
                             </div>
-                            <h3 class="text-xl font-bold text-slate-800">Detalle del Procedimiento</h3>
+                            <h3 class="text-xl font-bold text-slate-800">Detalles del Procedimiento</h3>
                         </div>
-                        <button onclick="cerrarModal()" class="text-slate-400 hover:text-slate-600 p-1">&times;</button>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1">&times;</button>
                     </div>
-                    <div class="p-8 overflow-y-auto text-slate-600 leading-relaxed text-lg" id="modalCuerpo">
-                        <!-- Contenido dinámico -->
+                    <div class="p-8 overflow-y-auto text-slate-600 leading-relaxed text-lg" id="modalBody">
+                        <!-- Contenido Dinámico -->
                     </div>
                     <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-                        <span id="modalPrecio" class="text-blue-700 font-bold"></span>
-                        <button onclick="cerrarModal()" class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-lg font-semibold transition">
+                        <span id="modalPrice" class="text-blue-700 font-bold"></span>
+                        <button onclick="closeModal()" class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-lg font-semibold transition">
                             Cerrar
                         </button>
                     </div>
@@ -151,29 +151,29 @@
             </div>
             
             <script>
-                function abrirModal(entidad, precio, texto, fecha) {
-                    document.getElementById('modalEntidad').innerText = entidad;
-                    document.getElementById('modalPrecio').innerText = "Presupuesto: " + precio;
-                    document.getElementById('modalCuerpo').innerText = texto;
-                    document.getElementById('modalFecha').innerText = "Publicado: " + fecha.split('-').reverse().join('/');
-                    document.getElementById('modalProcedimiento').classList.remove('hidden');
+                function openModal(entity, price, text, date) {
+                    document.getElementById('modalEntity').innerText = entity;
+                    document.getElementById('modalPrice').innerText = "Presupuesto: " + price;
+                    document.getElementById('modalBody').innerText = text;
+                    document.getElementById('modalDate').innerText = "Cierre: " + date.split('-').reverse().join('/');
+                    document.getElementById('procedureModal').classList.remove('hidden');
                     document.body.style.overflow = 'hidden'; 
                 }
 
-                function cerrarModal() {
-                    document.getElementById('modalProcedimiento').classList.add('hidden');
+                function closeModal() {
+                    document.getElementById('procedureModal').classList.add('hidden');
                     document.body.style.overflow = 'auto';
                 }
 
                 window.onclick = function(event) {
-                    let modal = document.getElementById('modalProcedimiento');
-                    if (event.target == modal) cerrarModal();
+                    let modal = document.getElementById('procedureModal');
+                    if (event.target == modal) closeModal();
                 }
 
                 let sortDirections = [true, true, true, true]; 
 
-                function ordenarTabla(n) {
-                    const table = document.getElementById("tablaResultados");
+                function sortTable(n) {
+                    const table = document.getElementById("resultsTable");
                     const rows = Array.from(table.rows).slice(1);
                     const isNumeric = (n === 1);
                     const isDate = (n === 3);
@@ -187,10 +187,10 @@
                     rows.sort((a, b) => {
                         let x, y;
                         if (isNumeric) {
-                            x = parseFloat(a.cells[n].getAttribute("data-valor")) || 0;
-                            y = parseFloat(b.cells[n].getAttribute("data-valor")) || 0;
+                            x = parseFloat(a.cells[n].getAttribute("data-value")) || 0;
+                            y = parseFloat(b.cells[n].getAttribute("data-value")) || 0;
                         } else if (isDate) {
-                            // Usar el formato YYYY-MM-DD para comparar cronológicamente
+                            // Comparar fechas en formato DD/MM/YYYY
                             x = a.cells[n].innerText.split('/').reverse().join('-');
                             y = b.cells[n].innerText.split('/').reverse().join('-');
                         } else {
@@ -209,7 +209,7 @@
             </script>
             {% else %}
             <div class="p-12 text-center">
-                <p class="text-slate-400">No se hallaron oportunidades para hoy con estos filtros.</p>
+                <p class="text-slate-400">No se encontraron oportunidades para hoy con estos filtros.</p>
             </div>
             {% endif %}
         </div>
@@ -217,7 +217,7 @@
     </main>
 
     <footer class="mt-auto py-6 text-center text-slate-400 text-xs">
-        &copy; 2026 Agente de Conocimiento Avanzado - SECOP II Analytics. Datos obtenidos de datos.gov.co
+        &copy; 2026 OpenSAI - Radar TI SECOP II. Datos proporcionados por datos.gov.co
     </footer>
 </body>
 </html>

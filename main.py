@@ -5,70 +5,70 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from typing import Optional, Annotated
 
-# Importaciones de Arquitectura Hexagonal
-from src.infrastructure.repositories import SocrataLicitacionRepository
-from src.application.services import BuscarLicitacionesVigentes
+# Hexagonal Architecture Imports
+from src.infrastructure.repositories import SocrataTenderRepository
+from src.application.services import SearchActiveTenders
 
 app = FastAPI(
-    title="SECOP II - Radar TI",
-    description="Herramienta de vigilancia tecnológica para contratación pública",
+    title="SECOP II - IT Radar",
+    description="Technology vigilance tool for public procurement.",
     version="2.0.0"
 )
 
-# Seguridad: Middleware para restringir hosts (OWASP)
+# Security: Middleware to restrict hosts (OWASP)
 app.add_middleware(
     TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0"]
+    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0", "testserver"]
 )
 
 templates = Jinja2Templates(directory="templates")
 
-# Inyección de Dependencias
-def get_licitacion_service():
-    """Factory para inyectar el repositorio en el caso de uso"""
-    repo = SocrataLicitacionRepository()
-    return BuscarLicitacionesVigentes(repo)
+# Dependency Injection
+def get_tender_service():
+    """Factory to inject the repository into the use case."""
+    repo = SocrataTenderRepository()
+    return SearchActiveTenders(repo)
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Interfaz principal"""
+    """Main Interface."""
     return templates.TemplateResponse("index.html", {
         "request": request, 
-        "resultados": None,
-        "presupuesto": 100000000,
-        "departamento_sel": "Todos"
+        "results": None,
+        "budget": 100000000,
+        "department_sel": "Todos"
     })
 
-@app.get("/consultar", response_class=HTMLResponse)
-async def consultar(
+@app.get("/search", response_class=HTMLResponse)
+async def search(
     request: Request, 
-    presupuesto: Annotated[float, Query(gt=0, le=100000000000)], # Validación Pydantic
-    departamento: str = "Todos",
-    service: BuscarLicitacionesVigentes = Depends(get_licitacion_service)
+    budget: Annotated[float, Query(gt=0, le=100000000000)], # Pydantic Validation
+    department: str = "Todos",
+    service: SearchActiveTenders = Depends(get_tender_service)
 ):
     """
-    Endpoint de consulta que orquesta el Caso de Uso.
-    Valida entradas y renderiza la vista.
+    Search endpoint that orchestrates the Use Case.
+    Validates inputs and renders the view.
     """
     try:
-        # Ejecución del Caso de Uso Puro
-        resultados = service.ejecutar(presupuesto=presupuesto, departamento=departamento)
+        # Pure Use Case Execution
+        results = service.execute(budget=budget, department=department)
         
-        # Adaptación para la vista (si fuera necesario, aquí irían DTOs de vista)
+        # Adaptation for the view
         return templates.TemplateResponse("index.html", {
             "request": request, 
-            "resultados": resultados, 
-            "presupuesto": int(presupuesto),
-            "departamento_sel": departamento,
-            "es_simulacion": False # Ya no simulamos, confiamos en el repo
+            "results": results, 
+            "budget": int(budget),
+            "department_sel": department,
+            "is_simulation": False
         })
     except Exception as e:
-        # Manejo de errores global para UI
+        # Global error handling for UI
         return templates.TemplateResponse("index.html", {
             "request": request, 
-            "resultados": [], 
-            "error": f"Error procesando la solicitud: {str(e)}",
-            "presupuesto": presupuesto
+            "results": [], 
+            "error": f"Error processing request: {str(e)}",
+            "budget": budget
         })
 
 if __name__ == "__main__":

@@ -1,37 +1,37 @@
-# Reporte de Estado: SECOP II - Radar TI (V2.0)
+# RNS (RNS Not Secop) - IT Radar V2.0
 
-## 1. Resumen Ejecutivo
-Se ha completado la migración exitosa de la aplicación "Radar TI" a una **Arquitectura Hexagonal (Clean Architecture)**. El sistema ahora es modular, testeable y seguro, cumpliendo con los estándares de Domain-Driven Design (DDD) y OWASP.
+## 1. Executive Summary
+**RNS (Radar TI)** is a specialized technology vigilance tool designed to automate the identification of public procurement opportunities in Colombia, specifically within the IT sector. The project has successfully migrated to a **Hexagonal Architecture (Clean Architecture)**, ensuring modularity, testability, and security.
 
-## 2. Validación Técnica
-| Componente | Estado | Validación |
+## 2. Technical Validation
+| Component | Status | Validation |
 | :--- | :--- | :--- |
-| **Dominio** | ✅ Estable | Entidad `Licitacion` con reglas de vigencia testeadas. |
-| **Aplicación** | ✅ Estable | Caso de Uso `BuscarLicitacionesVigentes` aislado y validado. |
-| **Infraestructura** | ✅ Conectado | Adaptador Socrata mapea JSON a Objetos de Dominio correctamente. |
-| **Presentación** | ✅ Integrado | FastAPI inyecta dependencias y renderiza vistas Jinja2. |
-| **Seguridad** | ✅ OWASP | Input Validation (Pydantic), TrustedHostMiddleware activo. |
+| **Domain** | ✅ Stable | `Tender` entity with tested validity rules. |
+| **Application** | ✅ Stable | `SearchActiveTenders` use case isolated and validated. |
+| **Infrastructure** | ✅ Connected | Socrata Adapter maps JSON to Domain Objects correctly. |
+| **Presentation** | ✅ Integrated | FastAPI injects dependencies and renders Jinja2 templates. |
+| **Security** | ✅ OWASP | Input Validation (Pydantic), TrustedHostMiddleware active. |
 
-## 3. Métricas de Calidad
-*   **Tests Unitarios**: 100% Pasados (4/4 tests críticos de arquitectura).
-*   **Acoplamiento**: Bajo. La UI no conoce a Socrata; solo conoce el Caso de Uso.
-*   **Mantenibilidad**: Alta. Cambiar de API (ej. a una base de datos local) solo requiere crear un nuevo adaptador en `src/infrastructure`.
+## 3. Quality Metrics
+*   **Unit Tests**: 100% Passed (Architecture critical tests).
+*   **Coupling**: Low. The UI is unaware of Socrata; it only knows the Use Case.
+*   **Maintainability**: High. Changing the API (e.g., to a local database) only requires creating a new adapter in `src/infrastructure`.
 
-## 4. Instrucciones de Despliegue
-Para ejecutar la versión productiva:
+## 4. Deployment Instructions
+To run the production version:
 
 ```bash
-# 1. Activar entorno virtual
+# 1. Activate virtual environment
 source venv/bin/activate
 
-# 2. Instalar dependencias (si es necesario)
+# 2. Install dependencies (if necessary)
 pip install fastapi uvicorn requests jinja2 pydantic
 
-# 3. Lanzar servidor (Puerto 8000)
+# 3. Launch server (Port 8000)
 uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-## 5. Próximos Pasos (Roadmap)
-*   [ ] Implementar caché (Redis) en la capa de infraestructura para reducir latencia.
-*   [ ] Añadir paginación en el Caso de Uso.
-*   [ ] Crear Dockerfile para contenerización.
+## 5. Roadmap
+*   [ ] Implement caching (Redis) in the infrastructure layer to reduce latency.
+*   [ ] Add pagination to the Use Case.
+*   [ ] Create Dockerfile for containerization.

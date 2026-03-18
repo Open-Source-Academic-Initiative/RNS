@@ -1,30 +1,31 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Protocol, Optional
 from datetime import datetime
 
 @dataclass
-class Licitacion:
-    """Entidad de Dominio: Representa una oportunidad de negocio en el SECOP II"""
+class Tender:
+    """Domain Entity: Represents a business opportunity in SECOP II."""
     id: str
-    referencia: str
-    entidad: str
-    nombre: str
-    descripcion: str
-    precio_base: float
-    fecha_publicacion: datetime
-    fecha_cierre: datetime
+    reference: str
+    entity: str
+    name: str
+    description: str
+    base_price: float
+    publish_date: datetime
+    closing_date: datetime
     url: str
-    departamento: Optional[str] = None
-    estado_apertura: str = "Abierto"
+    department: Optional[str] = None
+    status: str = "Open"
 
     @property
-    def es_vigente(self) -> bool:
-        return self.fecha_cierre >= datetime.now()
+    def is_active(self) -> bool:
+        """Checks if the tender is still open for submission."""
+        return self.closing_date >= datetime.now()
 
-class LicitacionRepository(Protocol):
-    """Puerto (Interface) para el acceso a datos de Licitaciones"""
-    def buscar_por_criterios(self, 
-                             presupuesto_max: float, 
-                             departamento: Optional[str] = None, 
-                             limite: int = 1000) -> List[Licitacion]:
+class TenderRepository(Protocol):
+    """Port (Interface) for Tender data access."""
+    def search_by_criteria(self, 
+                           max_budget: float, 
+                           department: Optional[str] = None, 
+                           limit: int = 1000) -> List[Tender]:
         ...

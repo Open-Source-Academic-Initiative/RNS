@@ -5,33 +5,31 @@ import json
 
 class SecopExtractor:
     def __init__(self):
-        self.url_base = "https://www.datos.gov.co/resource/p6dx-8zbt.json"
+        self.base_url = "https://www.datos.gov.co/resource/p6dx-8zbt.json"
         self.dataset_id = "p6dx-8zbt"
-        # Matriz de palabras clave para el dominio de TI
-        self.patron_ti = re.compile(r'\b(software|informátic[ao]|sistemas|computación|desarrollo web|api|datos|programación|cloud|nube|tecnologí[ao]s de la información|tic|ciberseguridad|machine learning|hardware)\b', re.IGNORECASE)
+        # IT Keyword Matrix
+        self.it_pattern = re.compile(r'\b(software|informátic[ao]|sistemas|computación|desarrollo web|api|datos|programación|cloud|nube|tecnologí[ao]s de la información|tic|ciberseguridad|machine learning|hardware)\b', re.IGNORECASE)
 
-    def consultar(self, presupuesto_max=100000000, departamento=None, limite=1000):
+    def fetch_data(self, max_budget=100000000, department=None, limit=1000):
         """
-        Consulta alineada con el nombre técnico real de la columna:
-        fecha_de_recepcion_de.
+        Query aligned with the technical column name: fecha_de_recepcion_de.
         """
-        from datetime import timedelta
-        # Fecha actual para validar procesos vigentes
-        hoy_iso = datetime.now().strftime('%Y-%m-%dT00:00:00.000')
+        # Current date to validate active processes
+        today_iso = datetime.now().strftime('%Y-%m-%dT00:00:00.000')
         
-        # Filtro robusto corregido: fecha_de_recepcion_de
+        # Robust filter: fecha_de_recepcion_de
         where_clause = (
-            f"precio_base <= {presupuesto_max} "
+            f"precio_base <= {max_budget} "
             f"AND estado_de_apertura_del_proceso = 'Abierto' "
-            f"AND fecha_de_recepcion_de >= '{hoy_iso}'"
+            f"AND fecha_de_recepcion_de >= '{today_iso}'"
         )
         
-        if departamento and departamento != "Todos":
-            where_clause += f" AND departamento_entidad = '{departamento}'"
+        if department and department != "Todos":
+            where_clause += f" AND departamento_entidad = '{department}'"
 
         params = {
             "$where": where_clause,
-            "$limit": limite
+            "$limit": limit
         }
         
         headers = {
@@ -39,89 +37,88 @@ class SecopExtractor:
         }
 
         try:
-            print(f"DEBUG: Consultando API SODA con presupuesto <= {presupuesto_max}...")
-            response = requests.get(self.url_base, params=params, headers=headers, timeout=30)
+            print(f"DEBUG: Querying SODA API with budget <= {max_budget}...")
+            response = requests.get(self.base_url, params=params, headers=headers, timeout=30)
             
             if response.status_code == 200:
-                datos = response.json()
-                print(f"DEBUG: API respondió exitosamente con {len(datos)} registros crudos.")
-                return datos
+                data = response.json()
+                print(f"DEBUG: API responded successfully with {len(data)} raw records.")
+                return data
             else:
-                print(f"ERROR API: {response.status_code} - {response.text[:100]}")
+                print(f"API ERROR: {response.status_code} - {response.text[:100]}")
                 return []
         except Exception as e:
-            print(f"EXCEPCION RED: {e}")
+            print(f"NETWORK EXCEPTION: {e}")
             return []
 
-    def procesar_datos(self, datos_crudos):
+    def process_data(self, raw_data):
         """
-        Aplica filtrado semántico y limpieza de datos sin depender de pandas.
+        Applies semantic filtering and data cleaning without depending on pandas.
         """
-        resultados_finales = []
+        final_results = []
         
-        for item in datos_crudos:
-            # Obtener y normalizar campos críticos
-            nombre = item.get('nombre_del_procedimiento', '')
-            descripcion = item.get('descripci_n_del_procedimiento', '')
-            entidad = item.get('entidad', 'N/A')
-            fecha = item.get('fecha_de_publicacion_del', 'N/A')
+        for item in raw_data:
+            # Get and normalize critical fields
+            name = item.get('nombre_del_procedimiento', '')
+            description = item.get('descripci_n_del_procedimiento', '')
+            entity = item.get('entidad', 'N/A')
             url = item.get('urlproceso', 'N/A')
             
             try:
-                precio = float(item.get('precio_base', 0))
+                price = float(item.get('precio_base', 0))
             except ValueError:
-                precio = 0.0
+                price = 0.0
 
-            # Concatenación heurística para búsqueda semántica
-            texto_analisis = f"{nombre} {descripcion}"
+            # Heuristic concatenation for semantic search
+            analysis_text = f"{name} {description}"
 
-            # Filtrado por Regex TI
-            if self.patron_ti.search(texto_analisis):
-                # Limpiar fechas (ISO 8601 a YYYY-MM-DD)
-                fecha_pub = item.get('fecha_de_publicacion_del', 'N/A').split('T')[0]
-                fecha_cierre = item.get('fecha_de_recepcion_de', 'N/A').split('T')[0]
+            # Filter by IT Regex
+            if self.it_pattern.search(analysis_text):
+                # Clean dates (ISO 8601 to YYYY-MM-DD)
+                pub_date = item.get('fecha_de_publicacion_del', 'N/A').split('T')[0]
+                closing_date = item.get('fecha_de_recepcion_de', 'N/A').split('T')[0]
                 
-                resultados_finales.append({
-                    'entidad': entidad,
-                    'fecha': fecha_pub,
-                    'fecha_cierre': fecha_cierre,
-                    'precio_base': precio,
-                    'nombre': nombre,
+                final_results.append({
+                    'entity': entity,
+                    'publish_date': pub_date,
+                    'closing_date': closing_date,
+                    'base_price': price,
+                    'name': name,
                     'url': url
                 })
 
-        # Ordenar por precio descendente
-        resultados_finales.sort(key=lambda x: x['precio_base'], reverse=True)
-        return resultados_finales
+        # Sort by price descending
+        final_results.sort(key=lambda x: x['base_price'], reverse=True)
+        return final_results
 
 if __name__ == "__main__":
     extractor = SecopExtractor()
-    print("Iniciando consulta a SECOP II (Colombia Compra Eficiente)...")
-    datos = extractor.consultar()
+    print("Starting query to SECOP II (Colombia Compra Eficiente)...")
+    data = extractor.fetch_data()
     
-    # Si la API falla por red, usamos un pequeño ejemplo simulado para demostrar funcionalidad
-    if not datos:
-        print("\n--- Modo Simulación (Falla de Conexión Detectada) ---")
-        datos = [
+    # If API fails due to network, use a small simulated example to demonstrate functionality
+    if not data:
+        print("\n--- Simulation Mode (Connection Failure Detected) ---")
+        data = [
             {
-                "entidad": "MINISTERIO DE PRUEBA",
+                "entidad": "TEST MINISTRY",
                 "precio_base": "85000000",
-                "nombre_del_procedimiento": "Desarrollo de Software a la medida",
-                "descripci_n_del_procedimiento": "API RESTful de gestión",
-                "urlproceso": "https://secop.gov.co/simulado"
+                "nombre_del_procedimiento": "Custom Software Development",
+                "descripci_n_del_procedimiento": "Management RESTful API",
+                "urlproceso": "https://secop.gov.co/simulated"
             }
         ]
     
-    resultados = extractor.procesar_datos(datos)
+    results = extractor.process_data(data)
     
-    if resultados:
-        print(f"\nSe hallaron {len(resultados)} procesos de TI que cumplen los criterios:")
+    if results:
+        print(f"\nFound {len(results)} IT processes matching criteria:")
         print("-" * 80)
-        for r in resultados:
-            print(f"ENTIDAD: {r['entidad']}")
-            print(f"PRECIO:  ${r['precio_base']:,.2f} COP")
-            print(f"NOMBRE:  {r['nombre']}")
-            print(f"URL:     {r['url']}")
+        for r in results:
+            print(f"ENTITY: {r['entity']}")
+            print(f"PRICE:  ${r['base_price']:,.2f} COP")
+            print(f"NAME:   {r['name']}")
+            print(f"URL:    {r['url']}")
             print("-" * 80)
     else:
-        print("\nNo se encontraron procesos que coincidan con los filtros de hoy.")
+        print("\nNo processes found matching today's filters.")

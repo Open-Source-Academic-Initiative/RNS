@@ -4,30 +4,30 @@ from secop_extractor import SecopExtractor
 class TestSecopExtractor(unittest.TestCase):
     def setUp(self):
         self.extractor = SecopExtractor()
-        # Datos simulados con diferentes escenarios
+        # Mock data with different scenarios
         self.mock_data = [
             {
-                "entidad": "ENTIDAD TI EXITOSA",
+                "entidad": "SUCCESSFUL IT ENTITY",
                 "precio_base": "80000000",
                 "nombre_del_procedimiento": "Desarrollo de Software Web",
-                "descripci_n_del_procedimiento": "API para gestión",
+                "descripci_n_del_procedimiento": "API de Gestión",
                 "urlproceso": "http://secop.gov.co/1"
             },
             {
-                "entidad": "ENTIDAD NO TI",
+                "entidad": "NON-IT ENTITY",
                 "precio_base": "50000000",
                 "nombre_del_procedimiento": "Compra de Papelería",
                 "descripci_n_del_procedimiento": "Resmas de papel",
                 "urlproceso": "http://secop.gov.co/2"
             },
             {
-                "entidad": "ENTIDAD TI SIN DESC",
+                "entidad": "IT ENTITY NO DESC",
                 "precio_base": "20000000",
-                "nombre_del_procedimiento": "Sistemas Informáticos",
+                "nombre_del_procedimiento": "Sistemas de Computo",
                 "urlproceso": "http://secop.gov.co/3"
             },
              {
-                "entidad": "ENTIDAD TI MAYUSCULAS",
+                "entidad": "UPPERCASE IT ENTITY",
                 "precio_base": "95000000",
                 "nombre_del_procedimiento": "DESARROLLO DE SOFTWARE",
                 "descripci_n_del_procedimiento": "INFRAESTRUCTURA CLOUD",
@@ -35,30 +35,30 @@ class TestSecopExtractor(unittest.TestCase):
             }
         ]
 
-    def test_filtrado_semantico_exitoso(self):
-        """Valida que se identifiquen correctamente los procesos de TI."""
-        resultados = self.extractor.procesar_datos(self.mock_data)
+    def test_semantic_filtering_success(self):
+        """Validates that IT processes are correctly identified."""
+        results = self.extractor.process_data(self.mock_data)
         
-        # Deben pasar: ENTIDAD TI EXITOSA, ENTIDAD TI SIN DESC, ENTIDAD TI MAYUSCULAS
-        self.assertEqual(len(resultados), 3)
-        entidades = [r['entidad'] for r in resultados]
-        self.assertIn("ENTIDAD TI EXITOSA", entidades)
-        self.assertIn("ENTIDAD TI MAYUSCULAS", entidades)
-        self.assertNotIn("ENTIDAD NO TI", entidades)
+        # Must pass: SUCCESSFUL IT ENTITY, IT ENTITY NO DESC, UPPERCASE IT ENTITY
+        self.assertEqual(len(results), 3)
+        entities = [r['entity'] for r in results]
+        self.assertIn("SUCCESSFUL IT ENTITY", entities)
+        self.assertIn("UPPERCASE IT ENTITY", entities)
+        self.assertNotIn("NON-IT ENTITY", entities)
 
-    def test_manejo_campos_faltantes(self):
-        """Valida que el sistema no falle si faltan campos opcionales."""
-        datos_incompletos = [{"entidad": "TEST", "nombre_del_procedimiento": "Software"}]
-        resultados = self.extractor.procesar_datos(datos_incompletos)
-        self.assertEqual(len(resultados), 1)
-        self.assertEqual(resultados[0]['entidad'], "TEST")
+    def test_missing_fields_handling(self):
+        """Validates that the system does not crash if optional fields are missing."""
+        incomplete_data = [{"entidad": "TEST", "nombre_del_procedimiento": "Software"}]
+        results = self.extractor.process_data(incomplete_data)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['entity'], "TEST")
 
-    def test_conversion_precio(self):
-        """Valida que el precio se convierta a float y se use para ordenar."""
-        resultados = self.extractor.procesar_datos(self.mock_data)
-        # El primer elemento debe ser el de mayor precio (95,000,000)
-        self.assertEqual(resultados[0]['precio_base'], 95000000.0)
-        self.assertIsInstance(resultados[0]['precio_base'], float)
+    def test_price_conversion(self):
+        """Validates that price is converted to float and used for sorting."""
+        results = self.extractor.process_data(self.mock_data)
+        # The first element must be the highest price (95,000,000)
+        self.assertEqual(results[0]['base_price'], 95000000.0)
+        self.assertIsInstance(results[0]['base_price'], float)
 
 if __name__ == "__main__":
     unittest.main()

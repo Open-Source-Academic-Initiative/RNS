@@ -1,87 +1,87 @@
 import unittest
 from datetime import datetime, timedelta
 from typing import List, Optional
-from src.domain.models import Licitacion, LicitacionRepository
-from src.application.services import BuscarLicitacionesVigentes
-from src.infrastructure.repositories import SocrataLicitacionRepository
+from src.domain.models import Tender, TenderRepository
+from src.application.services import SearchActiveTenders
+from src.infrastructure.repositories import SocrataTenderRepository
 
-# 1. Mock de Infraestructura (Para testear el Dominio/Aplicación aislados)
-class MockLicitacionRepository(LicitacionRepository):
-    def buscar_por_criterios(self, 
-                             presupuesto_max: float, 
-                             departamento: Optional[str] = None, 
-                             limite: int = 1000) -> List[Licitacion]:
-        # Retorna datos dummy controlados
+# 1. Infrastructure Mock (To test Domain/Application in isolation)
+class MockTenderRepository(TenderRepository):
+    def search_by_criteria(self, 
+                           max_budget: float, 
+                           department: Optional[str] = None, 
+                           limit: int = 1000) -> List[Tender]:
+        # Returns controlled dummy data
         return [
-            Licitacion(
+            Tender(
                 id="MOCK-001",
-                referencia="REF-2026-X",
-                entidad="Entidad Mock",
-                nombre="Software Mock",
-                descripcion="Desc",
-                precio_base=50000000.0,
-                fecha_publicacion=datetime.now(),
-                fecha_cierre=datetime.now() + timedelta(days=5),
+                reference="REF-2026-X",
+                entity="Mock Entity",
+                name="Mock Software",
+                description="Desc",
+                base_price=50000000.0,
+                publish_date=datetime.now(),
+                closing_date=datetime.now() + timedelta(days=5),
                 url="http://mock.com",
-                departamento="Bogotá"
+                department="Bogotá"
             )
         ]
 
-class TestArquitecturaHexagonal(unittest.TestCase):
+class TestHexagonalArchitecture(unittest.TestCase):
     
-    def test_entidad_dominio_vigencia(self):
-        """Valida la lógica de negocio en la entidad Licitacion"""
-        lic = Licitacion(
-            id="1", referencia="REF-01", entidad="Test", nombre="T", descripcion="D", precio_base=100,
-            fecha_publicacion=datetime.now(),
-            fecha_cierre=datetime.now() + timedelta(days=1), # Futuro
+    def test_domain_entity_validity(self):
+        """Validates business logic in the Tender entity"""
+        tender = Tender(
+            id="1", reference="REF-01", entity="Test", name="T", description="D", base_price=100,
+            publish_date=datetime.now(),
+            closing_date=datetime.now() + timedelta(days=1), # Future
             url="http"
         )
-        self.assertTrue(lic.es_vigente)
+        self.assertTrue(tender.is_active)
 
-        lic_vencida = Licitacion(
-            id="2", referencia="REF-02", entidad="Test", nombre="T", descripcion="D", precio_base=100,
-            fecha_publicacion=datetime.now(),
-            fecha_cierre=datetime.now() - timedelta(days=1), # Pasado
+        expired_tender = Tender(
+            id="2", reference="REF-02", entity="Test", name="T", description="D", base_price=100,
+            publish_date=datetime.now(),
+            closing_date=datetime.now() - timedelta(days=1), # Past
             url="http"
         )
-        self.assertFalse(lic_vencida.es_vigente)
+        self.assertFalse(expired_tender.is_active)
 
-    def test_caso_uso_buscar_licitaciones(self):
-        """Valida el Caso de Uso con un Repositorio Mock (Aislamiento)"""
-        repo = MockLicitacionRepository()
-        servicio = BuscarLicitacionesVigentes(repo)
+    def test_use_case_search_tenders(self):
+        """Validates the Use Case with a Mock Repository (Isolation)"""
+        repo = MockTenderRepository()
+        service = SearchActiveTenders(repo)
         
-        resultados = servicio.ejecutar(presupuesto=100000000)
+        results = service.execute(budget=100000000)
         
-        self.assertEqual(len(resultados), 1)
-        self.assertEqual(resultados[0].id, "MOCK-001")
-        self.assertEqual(resultados[0].precio_base, 50000000.0)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, "MOCK-001")
+        self.assertEqual(results[0].base_price, 50000000.0)
 
-    def test_validacion_negocio_presupuesto_negativo(self):
-        """Valida que el Caso de Uso rechace presupuestos inválidos"""
-        repo = MockLicitacionRepository()
-        servicio = BuscarLicitacionesVigentes(repo)
+    def test_business_validation_negative_budget(self):
+        """Validates that the Use Case rejects invalid budgets"""
+        repo = MockTenderRepository()
+        service = SearchActiveTenders(repo)
         
         with self.assertRaises(ValueError):
-            servicio.ejecutar(presupuesto=-100)
+            service.execute(budget=-100)
 
-class TestInfraestructuraReal(unittest.TestCase):
+class TestRealInfrastructure(unittest.TestCase):
     """
-    Pruebas de Integración con Socrata.
-    NOTA: Requiere conexión a internet.
+    Integration Tests with Socrata.
+    NOTE: Requires internet connection.
     """
-    def test_repositorio_socrata_mapeo(self):
-        repo = SocrataLicitacionRepository()
-        # Usamos un presupuesto alto para asegurar resultados
-        resultados = repo.buscar_por_criterios(presupuesto_max=500000000, limite=5)
+    def test_socrata_repository_mapping(self):
+        repo = SocrataTenderRepository()
+        # Use a high budget to ensure results
+        results = repo.search_by_criteria(max_budget=500000000, limit=5)
         
-        # Si la API responde, validamos la estructura
-        if resultados:
-            item = resultados[0]
-            self.assertIsInstance(item, Licitacion)
-            self.assertIsInstance(item.fecha_cierre, datetime)
-            self.assertGreaterEqual(item.precio_base, 0)
+        # If API responds, validate structure
+        if results:
+            item = results[0]
+            self.assertIsInstance(item, Tender)
+            self.assertIsInstance(item.closing_date, datetime)
+            self.assertGreaterEqual(item.base_price, 0)
 
 if __name__ == "__main__":
     unittest.main()
