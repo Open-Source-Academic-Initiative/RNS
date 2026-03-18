@@ -71,4 +71,4 @@ Please adhere to the Clean Code standards and ensure all documentation is in Eng
 
 ## License
 
-MIT License.
+GNU GENERAL PUBLIC LICENSE Version 3
