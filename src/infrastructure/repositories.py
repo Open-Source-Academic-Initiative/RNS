@@ -1,25 +1,56 @@
+import asyncio
 import logging
+import time
 from datetime import datetime
-from typing import Any, Iterable, List, Optional
+from typing import Any, Iterable, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
-import requests
+import httpx
 
 from src.application.validators import DEFAULT_DEPARTMENT, normalize_department
 from src.domain.models import Tender, TenderRepository
-from src.infrastructure.constants import IT_KEYWORD_PATTERN
+from src.infrastructure.constants import IT_KEYWORD_PATTERN, SOCRATA_IT_SEEDS
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE = 100
 DEFAULT_MAX_PAGES = 20
-DEFAULT_TIMEOUT_SECONDS = 30
+DEFAULT_TIMEOUT_SECONDS = 30.0
+DEFAULT_CACHE_TTL_SECONDS = 300.0
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_BACKOFF_BASE_SECONDS = 0.5
+DEFAULT_TIMEZONE = "America/Bogota"
 DEFAULT_URL = "#"
 DEFAULT_IDENTIFIER = "N/A"
 UNKNOWN_STATUS = "Unknown"
 DEFAULT_ORDER_BY = "fecha_de_recepcion_de ASC, precio_base DESC"
 DATE_FORMAT = "%Y-%m-%d"
 SODA_DATE_FORMAT = "%Y-%m-%dT00:00:00.000"
-USER_AGENT = "RNS/2.1 (+https://github.com/Open-Source-Academic-Initiative/RNS)"
+USER_AGENT = "RNS/2.2 (+https://github.com/Open-Source-Academic-Initiative/RNS)"
+
+
+class _TTLCache:
+    """Tiny in-process TTL cache using time.monotonic for expiry."""
+
+    def __init__(self, ttl_seconds: float):
+        self._ttl = ttl_seconds
+        self._entries: dict[Any, Tuple[float, Any]] = {}
+
+    def get(self, key: Any) -> Optional[Any]:
+        entry = self._entries.get(key)
+        if entry is None:
+            return None
+        expires_at, value = entry
+        if time.monotonic() >= expires_at:
+            self._entries.pop(key, None)
+            return None
+        return value
+
+    def set(self, key: Any, value: Any) -> None:
+        self._entries[key] = (time.monotonic() + self._ttl, value)
+
+    def clear(self) -> None:
+        self._entries.clear()
 
 
 class SocrataTenderRepository(TenderRepository):
@@ -29,130 +60,180 @@ class SocrataTenderRepository(TenderRepository):
 
     def __init__(
         self,
-        session: Any = None,
+        client: Optional[httpx.AsyncClient] = None,
         page_size: int = DEFAULT_PAGE_SIZE,
         max_pages: int = DEFAULT_MAX_PAGES,
+        cache_ttl: float = DEFAULT_CACHE_TTL_SECONDS,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        backoff_base: float = DEFAULT_BACKOFF_BASE_SECONDS,
+        timezone_name: str = DEFAULT_TIMEZONE,
     ):
-        self.session = session or requests
+        self._injected_client = client
+        self._client: Optional[httpx.AsyncClient] = client
         self.page_size = page_size
         self.max_pages = max_pages
+        self.max_retries = max(1, max_retries)
+        self.backoff_base = backoff_base
+        self._tz = ZoneInfo(timezone_name)
+        self._cache = _TTLCache(cache_ttl)
 
-    def search_by_criteria(self,
-                           max_budget: float,
-                           department: Optional[str] = None,
-                           limit: int = 1000) -> List[Tender]:
-        """Fetches active IT tenders using ordered SECOP II pages."""
+    async def aclose(self) -> None:
+        """Release the internally-managed HTTP client, if any."""
+        if self._client is not None and self._injected_client is None:
+            await self._client.aclose()
+            self._client = None
+
+    def _ensure_client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS)
+        return self._client
+
+    async def search_by_criteria(
+        self,
+        max_budget: float,
+        department: Optional[str] = None,
+        keyword: Optional[str] = None,
+        limit: int = 1000,
+    ) -> List[Tender]:
+        """Fetches active IT tenders using concurrent SECOP II pages."""
         if limit <= 0:
             return []
 
         normalized_department = normalize_department(department)
+        normalized_keyword = self._normalize_keyword(keyword)
+
+        cache_key = (max_budget, normalized_department, normalized_keyword)
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached[:limit]
+
+        raw_pages = await self._fetch_all_pages(max_budget, normalized_department)
+
         matching_tenders: List[Tender] = []
-        seen_tender_ids = set()
-
-        for raw_page in self._iter_raw_pages(max_budget, normalized_department):
+        seen_ids: set[str] = set()
+        for raw_page in raw_pages:
             for tender in self.map_raw_records(raw_page):
-                if tender.id in seen_tender_ids:
+                if tender.id in seen_ids:
                     continue
-                seen_tender_ids.add(tender.id)
+                if normalized_keyword and not self._matches_keyword(tender, normalized_keyword):
+                    continue
+                seen_ids.add(tender.id)
                 matching_tenders.append(tender)
-                if len(matching_tenders) >= limit:
-                    return matching_tenders[:limit]
 
+        self._cache.set(cache_key, matching_tenders)
         return matching_tenders[:limit]
 
-    def fetch_raw_records(self,
-                          max_budget: float,
-                          department: Optional[str] = None,
-                          limit: int = 1000) -> List[dict]:
+    async def fetch_raw_records(
+        self,
+        max_budget: float,
+        department: Optional[str] = None,
+        limit: int = 1000,
+    ) -> List[dict]:
         """Fetches raw ordered pages from SECOP II for compatibility use cases."""
         if limit <= 0:
             return []
 
         normalized_department = normalize_department(department)
-        raw_results: List[dict] = []
+        raw_pages = await self._fetch_all_pages(max_budget, normalized_department)
 
-        for raw_page in self._iter_raw_pages(max_budget, normalized_department, raw_limit=limit):
-            raw_results.extend(raw_page)
+        raw_results: List[dict] = []
+        for page in raw_pages:
+            raw_results.extend(page)
+            if len(raw_results) >= limit:
+                break
 
         return raw_results[:limit]
 
     def map_raw_records(self, raw_records: Iterable[dict]) -> List[Tender]:
         """Maps raw SECOP II records into sorted domain entities."""
         tenders: List[Tender] = []
-
         for raw_record in raw_records:
             tender = self._build_tender(raw_record)
             if tender is not None:
                 tenders.append(tender)
-
         return sorted(tenders, key=lambda item: item.closing_date)
 
-    def _build_where_clause(self, max_budget: float, department: str) -> str:
-        today_iso = datetime.now().strftime(SODA_DATE_FORMAT)
-        where_clause = (
-            f"precio_base <= {max_budget} "
-            f"AND estado_de_apertura_del_proceso = 'Abierto' "
-            f"AND fecha_de_recepcion_de >= '{today_iso}'"
-        )
-
-        if department != DEFAULT_DEPARTMENT:
-            safe_department = department.replace("'", "''")
-            where_clause += f" AND departamento_entidad = '{safe_department}'"
-
-        return where_clause
-
-    def _iter_raw_pages(
+    async def _fetch_all_pages(
         self,
         max_budget: float,
         department: str,
-        raw_limit: Optional[int] = None,
-    ) -> Iterable[List[dict]]:
-        collected_raw_records = 0
-
-        for page_number in range(self.max_pages):
-            if raw_limit is not None and collected_raw_records >= raw_limit:
-                break
-
-            page_limit = self.page_size
-            if raw_limit is not None:
-                page_limit = min(self.page_size, raw_limit - collected_raw_records)
-
-            raw_page = self._fetch_page(
+    ) -> List[List[dict]]:
+        tasks = [
+            self._fetch_page(
                 max_budget=max_budget,
                 department=department,
-                limit=page_limit,
+                limit=self.page_size,
                 offset=page_number * self.page_size,
             )
-            if not raw_page:
+            for page_number in range(self.max_pages)
+        ]
+        pages = await asyncio.gather(*tasks)
+
+        truncated: List[List[dict]] = []
+        for page in pages:
+            truncated.append(page)
+            if len(page) < self.page_size:
                 break
+        return truncated
 
-            yield raw_page
-            collected_raw_records += len(raw_page)
-
-            if len(raw_page) < page_limit:
-                break
-
-    def _fetch_page(self, max_budget: float, department: str, limit: int, offset: int) -> List[dict]:
-        params = {
+    async def _fetch_page(
+        self,
+        max_budget: float,
+        department: str,
+        limit: int,
+        offset: int,
+    ) -> List[dict]:
+        params: dict[str, Any] = {
             "$where": self._build_where_clause(max_budget, department),
             "$limit": limit,
             "$offset": offset,
             "$order": DEFAULT_ORDER_BY,
         }
-        headers = {"User-Agent": USER_AGENT}
+        q_seed = self._build_q_seed()
+        if q_seed:
+            params["$q"] = q_seed
 
-        try:
-            response = self.session.get(
-                self.BASE_URL,
-                params=params,
-                headers=headers,
-                timeout=DEFAULT_TIMEOUT_SECONDS,
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as exc:
-            logger.warning("Infrastructure Error (Socrata): %s", exc)
-            return []
+        headers = {"User-Agent": USER_AGENT}
+        client = self._ensure_client()
+
+        for attempt in range(self.max_retries):
+            try:
+                response = await client.get(
+                    self.BASE_URL,
+                    params=params,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                return payload if isinstance(payload, list) else []
+            except (httpx.TimeoutException, httpx.TransportError, httpx.HTTPStatusError) as exc:
+                if attempt == self.max_retries - 1:
+                    logger.warning(
+                        "Socrata fetch failed after %d attempts (offset=%d): %s",
+                        self.max_retries,
+                        offset,
+                        exc,
+                    )
+                    return []
+                await asyncio.sleep(self.backoff_base * (2 ** attempt))
+        return []
+
+    def _build_where_clause(self, max_budget: float, department: str) -> str:
+        today_iso = datetime.now(self._tz).strftime(SODA_DATE_FORMAT)
+        where_clause = (
+            f"precio_base <= {max_budget} "
+            f"AND estado_de_apertura_del_proceso = 'Abierto' "
+            f"AND fecha_de_recepcion_de >= '{today_iso}'"
+        )
+        if department != DEFAULT_DEPARTMENT:
+            safe_department = department.replace("'", "''")
+            where_clause += f" AND departamento_entidad = '{safe_department}'"
+        return where_clause
+
+    def _build_q_seed(self) -> str:
+        if not SOCRATA_IT_SEEDS:
+            return ""
+        return " ".join(SOCRATA_IT_SEEDS)
 
     def _build_tender(self, raw_record: dict) -> Optional[Tender]:
         procedure_name = raw_record.get("nombre_del_procedimiento", "")
@@ -182,14 +263,22 @@ class SocrataTenderRepository(TenderRepository):
         analysis_text = f"{procedure_name} {procedure_description}"
         return IT_KEYWORD_PATTERN.search(analysis_text) is not None
 
+    def _matches_keyword(self, tender: Tender, keyword: str) -> bool:
+        haystack = f"{tender.name} {tender.description} {tender.entity}".lower()
+        return keyword in haystack
+
+    def _normalize_keyword(self, keyword: Optional[str]) -> Optional[str]:
+        if keyword is None:
+            return None
+        trimmed = keyword.strip().lower()
+        return trimmed or None
+
     def _parse_date(self, raw_date: Optional[str], fallback: datetime) -> datetime:
         if not raw_date:
             return fallback
-
         normalized_date = raw_date.split("T")[0]
         if not normalized_date:
             return fallback
-
         return datetime.strptime(normalized_date, DATE_FORMAT)
 
     def _extract_url(self, raw_url: Any) -> str:

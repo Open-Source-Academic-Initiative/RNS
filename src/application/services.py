@@ -3,32 +3,30 @@ from typing import List, Optional
 from src.application.validators import normalize_department
 from src.domain.models import Tender, TenderRepository
 
+
 class SearchActiveTenders:
-    """Use Case: Search for active business opportunities filtered by budget and location."""
-    
+    """Use Case: Search for active business opportunities filtered by budget, location and keyword."""
+
     def __init__(self, repository: TenderRepository):
         self.repository = repository
 
-    def execute(self, budget: float, department: Optional[str] = None) -> List[Tender]:
-        """
-        Executes the search logic.
-        
-        Args:
-            budget: Maximum allowed budget.
-            department: Specific department to filter by.
-            
-        Returns:
-            List of matching Tender entities.
-            
-        Raises:
-            ValueError: If budget is negative.
+    async def execute(
+        self,
+        budget: float,
+        department: Optional[str] = None,
+        keyword: Optional[str] = None,
+    ) -> List[Tender]:
+        """Executes the search use case and returns the matching tenders.
+
+        Raises ValueError if the budget is negative or the department is unsupported.
         """
         if budget < 0:
             raise ValueError("Budget cannot be negative")
 
         normalized_department = normalize_department(department)
 
-        return self.repository.search_by_criteria(
+        return await self.repository.search_by_criteria(
             max_budget=budget,
             department=normalized_department,
+            keyword=keyword,
         )

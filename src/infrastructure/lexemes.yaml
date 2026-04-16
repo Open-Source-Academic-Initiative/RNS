@@ -1,0 +1,244 @@
+# IT Lexeme Matrix V2.4 — edit this file to tune semantic filtering.
+#
+# categories:    regex fragments grouped by domain (joined with `|` to build the pattern).
+# socrata_seeds: whole-word terms pushed to Socrata `$q` to reduce payload size.
+#                Keep the list broad enough not to drop true positives — the regex
+#                post-filter remains authoritative.
+
+categories:
+  core:
+    - software
+    - informátic[ao]
+    - sistemas
+    - computación
+    - desarrollo web
+    - desarrollo de software
+    - desarrollo tecnológico
+    - web
+    - api
+    - datos
+    - programación
+    - cloud
+    - nube
+    - tecnologí[ao]s de la información
+    - tic
+    - ciberseguridad
+    - machine learning
+    - hardware
+
+  research:
+    - i\+d\+i
+    - investigación aplicada
+    - investigación y desarrollo
+    - ciencia de datos
+    - análisis predictivo
+    - algoritmos
+    - inteligencia artificial
+    - ia
+
+  innovation:
+    - innovación abierta
+    - gestión tecnológica
+    - prospectiva tecnológica
+    - vigilancia tecnológica
+    - transferencia de tecnología
+    - madurez tecnológica
+    - trl
+
+  prototyping:
+    - prototipado
+    - mvp
+    - prueba de concepto
+    - poc
+    - fábrica de software
+    - laboratorio de innovación
+    - sandbox
+
+  knowledge:
+    - gestión del conocimiento
+    - propiedad intelectual
+    - patente
+    - derecho de autor
+    - licenciamiento abierto
+    - creative commons
+    - repositorio digital
+
+  transformation:
+    - transformación digital
+    - hoja de ruta
+    - roadmap tecnológico
+    - estándares técnicos
+    - interoperabilidad
+    - analítica avanzada
+
+  web_ux:
+    - diseño web
+    - página web
+    - sitio web
+    - portal web
+    - e-commerce
+    - tienda virtual
+    - interfaz
+    - ux/ui
+
+  digital_identity:
+    - firma digital
+    - certificado digital
+    - biometría
+    - identidad digital
+    - autenticación
+
+  consulting:
+    - consultoría especializada
+    - asesoría técnica
+    - apoyo a la gestión tics
+    - arquitectura empresarial
+    - gobierno de datos
+    - auditoría informática
+
+  support:
+    - mantenimiento preventivo
+    - mantenimiento correctivo
+    - soporte técnico
+    - mesa de ayuda
+    - help desk
+    - reparación
+
+  procurement:
+    - adquisición de licencias
+    - suscripción de software
+    - compra de equipos
+    - suministro tecnológico
+    - renovación tecnológica
+
+  linux:
+    - linux
+    - gnu
+    - ubuntu
+    - debian
+    - redhat
+    - rhel
+    - fedora
+    - centos
+    - kernel
+    - bash
+    - shell
+    - terminal
+
+  devops:
+    - sysadmin
+    - devops
+    - sre
+    - kubernetes
+    - k8s
+    - openshift
+    - container
+    - docker
+    - podman
+    - oci
+    - helm
+    - operator
+    - cluster
+    - node
+    - pod
+    - namespace
+    - ingress
+    - service
+    - deployment
+    - configmap
+    - secret
+
+  cicd:
+    - ci/cd
+    - git
+    - gitlab
+    - github
+    - pipeline
+    - iac
+    - ansible
+    - terraform
+    - virtualización
+    - kvm
+    - xen
+    - qemu
+
+  stack:
+    - apache
+    - nginx
+    - php
+    - python
+    - javascript
+    - typescript
+    - backend
+    - frontend
+    - fullstack
+    - rest
+    - microservicios
+    - monolito
+
+  platforms:
+    - postgresql
+    - mysql
+    - mariadb
+    - joomla
+    - wordpress
+    - cms
+    - plugin
+    - theme
+    - template
+    - hosting
+    - dominio
+    - ssl
+    - https
+    - dns
+    - ldap
+
+  formats:
+    - yaml
+    - json
+    - markdown
+    - opensource
+    - foss
+    - licencia
+    - licenciamiento
+    - gpl
+    - mit
+    - apache-2\.0
+    - automatización
+
+  observability_security:
+    - observabilidad
+    - logging
+    - monitoring
+    - prometheus
+    - grafana
+    - elk
+    - seguridad informática
+    - seguridad de la información
+    - seguridad digital
+    - seguridad perimetral
+    - seguridad de redes
+    - hardening
+    - firewall
+    - selinux
+    - apparmor
+
+  packaging:
+    - paquete
+    - repositorio
+    - snap
+    - flatpak
+    - soluciones
+    - aplicaciones
+
+socrata_seeds:
+  - software
+  - tecnología
+  - tecnológico
+  - informática
+  - informático
+  - sistemas
+  - cloud
+  - ciberseguridad
+  - hardware
+  - digital

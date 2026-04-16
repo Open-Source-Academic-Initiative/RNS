@@ -1,79 +1,60 @@
 # RNS: SECOP II IT Radar
 
-**RNS (RNS Not Secop)** is a clean-architecture-based tool designed to monitor and filter IT procurement opportunities from the Colombian public database (SECOP II).
+**RNS (RNS Not Secop)** is a clean-architecture tool that monitors and filters IT procurement opportunities from the Colombian public database (SECOP II). It is designed to run locally for internal use.
 
 ## Features
 
-- **Hexagonal Architecture**: Strict separation between Domain, Application, and Infrastructure layers.
-- **Advanced Filtering**: Uses a high-fidelity regex matrix to identify IT-specific tenders (software, cloud, cybersecurity, etc.).
-- **Clean Code**: Fully refactored to standard English (en_US) and SOLID principles.
-- **Security**: Validated inputs, bounded filters, and trusted host restriction.
+- **Hexagonal architecture**: strict separation between Domain, Application, Infrastructure and Presentation layers.
+- **Async SECOP II adapter**: `httpx.AsyncClient` with concurrent page fetching, TTL cache and retries with exponential backoff.
+- **Semantic filtering**: IT lexeme matrix externalized in `src/infrastructure/lexemes.yaml`; edit it to tune precision without touching code.
+- **Socrata pre-filter**: ships a `$q` seed list to reduce payload size; the regex post-filter remains authoritative.
+- **Operator UX**: keyword search, visible pagination, CSV export and a submit spinner.
 
 ## Project Structure
 
 ```
 src/
-├── domain/           # Enterprise Business Rules (Entities & Interfaces)
-├── application/      # Application Business Rules (Use Cases)
-├── infrastructure/   # Interface Adapters (API Clients, Repositories)
-└── presentation/     # Frameworks & Drivers (FastAPI, Templates)
+├── domain/           # Entities and repository port
+├── application/      # Use cases and validators
+├── infrastructure/   # Socrata adapter, lexeme matrix
+└── presentation/     # FastAPI app and templates
 
-main.py               # Thin ASGI entrypoint importing the presentation layer
-secop_extractor.py    # Compatibility CLI wrapper over the shared repository
-requirements.txt      # Runtime and test dependencies
+main.py               # ASGI entrypoint
+secop_extractor.py    # CLI wrapper over the async repository
+requirements.txt      # Pinned runtime dependencies
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.9+
-- Pip
-- Virtual environment (recommended)
+- Python 3.11+ (for `zoneinfo`)
+- Pip and a virtual environment
 
 ### Installation
 
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/aicruma/RNS.git
-    cd RNS
-    ```
-
-2.  Create and activate a virtual environment:
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-    ```
-
-3.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 ### Running the Application
-
-Start the development server:
 
 ```bash
 uvicorn main:app --reload
 ```
 
-Navigate to `http://localhost:8000` to view the dashboard.
+Then open `http://localhost:8000`. `HOST`, `PORT` and `ALLOWED_HOSTS` can be overridden via environment variables.
 
 ## Testing
 
-Run the unit and integration tests:
-
 ```bash
 python -m unittest discover tests -v
-python validate_app.py
-python test_secop.py
 ```
 
-## Contributing
-
-Please adhere to the Clean Code standards and ensure all documentation is in English (en_US).
+Set `RUN_LIVE_INTEGRATION=1` to additionally exercise the live Socrata integration test.
 
 ## License
 
-GNU GENERAL PUBLIC LICENSE Version 3
+GNU General Public License v3.

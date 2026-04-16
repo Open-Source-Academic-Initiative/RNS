@@ -2,6 +2,7 @@ from datetime import datetime
 from dataclasses import dataclass
 from typing import List, Optional, Protocol
 
+
 @dataclass
 class Tender:
     """Domain Entity: Represents a business opportunity in SECOP II."""
@@ -22,13 +23,15 @@ class Tender:
         """Checks if the tender is still open for submission."""
         return self.closing_date >= datetime.now()
 
+
 class TenderRepository(Protocol):
     """Port (Interface) for Tender data access."""
 
-    def search_by_criteria(
+    async def search_by_criteria(
         self,
         max_budget: float,
         department: Optional[str] = None,
+        keyword: Optional[str] = None,
         limit: int = 1000,
     ) -> List[Tender]:
         ...
