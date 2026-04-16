@@ -21,8 +21,8 @@ def _load_lexeme_matrix() -> Tuple[re.Pattern, List[str]]:
         raise RuntimeError("IT lexeme matrix is empty — check lexemes.yaml")
 
     pattern = re.compile(r"\b(" + "|".join(fragments) + r")\b", re.IGNORECASE)
-    seeds = list(matrix.get("socrata_seeds") or [])
+    seeds = list(matrix.get("socrata_like_seeds") or [])
     return pattern, seeds
 
 
-IT_KEYWORD_PATTERN, SOCRATA_IT_SEEDS = _load_lexeme_matrix()
+IT_KEYWORD_PATTERN, SOCRATA_LIKE_SEEDS = _load_lexeme_matrix()

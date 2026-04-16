@@ -1,9 +1,13 @@
 # IT Lexeme Matrix V2.4 — edit this file to tune semantic filtering.
 #
-# categories:    regex fragments grouped by domain (joined with `|` to build the pattern).
-# socrata_seeds: whole-word terms pushed to Socrata `$q` to reduce payload size.
-#                Keep the list broad enough not to drop true positives — the regex
-#                post-filter remains authoritative.
+# categories:         regex fragments grouped by domain (joined with `|` to build the pattern).
+# socrata_like_seeds: ASCII substrings pushed to Socrata `$where` as an OR chain of
+#                     `UPPER(nombre|descripción) LIKE '%SEED%'` clauses to reduce
+#                     payload size. Use short, accent-free partials so they survive
+#                     PostgreSQL's accent-sensitive LIKE (e.g. "tecnolog" matches
+#                     "tecnología", "tecnológico", "tecnologías"). Keep the list
+#                     broad enough not to drop true positives — the regex post-filter
+#                     remains authoritative.
 
 categories:
   core:
@@ -231,14 +235,14 @@ categories:
     - soluciones
     - aplicaciones
 
-socrata_seeds:
+socrata_like_seeds:
   - software
-  - tecnología
-  - tecnológico
-  - informática
-  - informático
+  - tecnolog
+  - informat
   - sistemas
   - cloud
-  - ciberseguridad
+  - ciberseg
   - hardware
   - digital
+  - computo
+  - servidor

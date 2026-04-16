@@ -9,7 +9,7 @@ import httpx
 
 from src.application.validators import DEFAULT_DEPARTMENT, normalize_department
 from src.domain.models import Tender, TenderRepository
-from src.infrastructure.constants import IT_KEYWORD_PATTERN, SOCRATA_IT_SEEDS
+from src.infrastructure.constants import IT_KEYWORD_PATTERN, SOCRATA_LIKE_SEEDS
 
 logger = logging.getLogger(__name__)
 
@@ -189,10 +189,6 @@ class SocrataTenderRepository(TenderRepository):
             "$offset": offset,
             "$order": DEFAULT_ORDER_BY,
         }
-        q_seed = self._build_q_seed()
-        if q_seed:
-            params["$q"] = q_seed
-
         headers = {"User-Agent": USER_AGENT}
         client = self._ensure_client()
 
@@ -220,20 +216,31 @@ class SocrataTenderRepository(TenderRepository):
 
     def _build_where_clause(self, max_budget: float, department: str) -> str:
         today_iso = datetime.now(self._tz).strftime(SODA_DATE_FORMAT)
-        where_clause = (
-            f"precio_base <= {max_budget} "
-            f"AND estado_de_apertura_del_proceso = 'Abierto' "
-            f"AND fecha_de_recepcion_de >= '{today_iso}'"
-        )
+        clauses = [
+            f"precio_base <= {max_budget}",
+            "estado_de_apertura_del_proceso = 'Abierto'",
+            f"fecha_de_recepcion_de >= '{today_iso}'",
+        ]
         if department != DEFAULT_DEPARTMENT:
             safe_department = department.replace("'", "''")
-            where_clause += f" AND departamento_entidad = '{safe_department}'"
-        return where_clause
+            clauses.append(f"departamento_entidad = '{safe_department}'")
 
-    def _build_q_seed(self) -> str:
-        if not SOCRATA_IT_SEEDS:
+        seed_clause = self._build_seed_clause()
+        if seed_clause:
+            clauses.append(seed_clause)
+
+        return " AND ".join(clauses)
+
+    def _build_seed_clause(self) -> str:
+        """Builds an OR chain of UPPER(col) LIKE '%SEED%' to prefilter at Socrata."""
+        if not SOCRATA_LIKE_SEEDS:
             return ""
-        return " ".join(SOCRATA_IT_SEEDS)
+        like_fragments: list[str] = []
+        for raw_seed in SOCRATA_LIKE_SEEDS:
+            safe_seed = raw_seed.replace("'", "''").upper()
+            like_fragments.append(f"UPPER(nombre_del_procedimiento) LIKE '%{safe_seed}%'")
+            like_fragments.append(f"UPPER(descripci_n_del_procedimiento) LIKE '%{safe_seed}%'")
+        return "(" + " OR ".join(like_fragments) + ")"
 
     def _build_tender(self, raw_record: dict) -> Optional[Tender]:
         procedure_name = raw_record.get("nombre_del_procedimiento", "")
