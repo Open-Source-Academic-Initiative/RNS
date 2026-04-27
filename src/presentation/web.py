@@ -9,7 +9,7 @@ from typing import Annotated, Any, List, Optional
 
 from fastapi import Depends, FastAPI, Query, Request
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from src.application.services import SearchActiveTenders
@@ -239,10 +239,19 @@ async def search_csv(
     department: Annotated[str, Query(max_length=64)] = DEFAULT_DEPARTMENT,
     keyword: Annotated[str, Query(max_length=MAX_KEYWORD_LENGTH)] = "",
     service: SearchActiveTenders = Depends(get_tender_service),
-) -> StreamingResponse:
+):
     """Exports the current search result as a CSV file."""
     normalized_keyword = _normalize_keyword(keyword)
-    results = await _execute_search(service, budget, department, normalized_keyword)
+    try:
+        results = await _execute_search(service, budget, department, normalized_keyword)
+    except ValueError as error:
+        return PlainTextResponse(
+            _translate_validation_error(error),
+            status_code=400,
+        )
+    except Exception:
+        logger.exception("Unexpected error while exporting tender search results.")
+        return PlainTextResponse(UNEXPECTED_SEARCH_ERROR, status_code=500)
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
