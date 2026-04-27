@@ -7,8 +7,8 @@
 - **Hexagonal architecture**: strict separation between Domain, Application, Infrastructure and Presentation layers.
 - **Async SECOP II adapter**: `httpx.AsyncClient` with concurrent page fetching, TTL cache and retries with exponential backoff.
 - **Semantic filtering**: IT lexeme matrix externalized in `src/infrastructure/lexemes.yaml`; edit it to tune precision without touching code.
-- **Socrata pre-filter**: ships a `$q` seed list to reduce payload size; the regex post-filter remains authoritative.
-- **Operator UX**: keyword search, visible pagination, CSV export and a submit spinner.
+- **Socrata pre-filter**: ships a broad `UPPER(...) LIKE` seed list in `$where` to reduce payload size; the regex post-filter remains authoritative for precision.
+- **Operator UX**: keyword search, visible pagination, CSV export, a submit spinner and a self-contained local stylesheet.
 
 ## Project Structure
 

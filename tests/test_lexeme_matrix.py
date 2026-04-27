@@ -1,6 +1,6 @@
 import unittest
 
-from src.infrastructure.constants import IT_KEYWORD_PATTERN
+from src.infrastructure.constants import IT_KEYWORD_PATTERN, SOCRATA_LIKE_SEEDS
 from src.infrastructure.repositories import SocrataTenderRepository
 
 
@@ -97,6 +97,19 @@ class TestLexemeMatrixConformity(unittest.TestCase):
 
         for tender in mapped_results:
             self.assertIn(tender.name, self.positive_samples)
+
+    def test_socrata_prefilter_covers_representative_positive_samples(self):
+        """
+        The Socrata LIKE prefilter is allowed to be broad, but it must not
+        discard representative IT positives before the regex filter runs.
+        """
+        upper_seeds = [seed.upper() for seed in SOCRATA_LIKE_SEEDS]
+        for sample in self.positive_samples:
+            with self.subTest(sample=sample):
+                self.assertTrue(
+                    any(seed in sample.upper() for seed in upper_seeds),
+                    f"Socrata prefilter seed list does not cover: '{sample}'"
+                )
 
     def test_word_boundary_security(self):
         """

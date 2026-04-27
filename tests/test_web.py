@@ -80,6 +80,14 @@ class TestWebInterface(unittest.TestCase):
         self.assertIn("Desarrollo de software #1", response.text)
         self.assertIn("Exportar CSV", response.text)
 
+    def test_frontend_is_local_and_avoids_modal_inline_data_handlers(self):
+        response = self.client.get("/search?budget=100000000&department=Todos")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("cdn.tailwindcss.com", response.text)
+        self.assertNotIn("onclick=\"openModal", response.text)
+        self.assertIn("data-text=", response.text)
+
     def test_search_threads_keyword_to_service(self):
         response = self.client.get("/search?budget=100000000&department=Todos&keyword=KUBE")
 
@@ -102,6 +110,12 @@ class TestWebInterface(unittest.TestCase):
         body = response.text
         self.assertIn("id,reference,entity", body)
         self.assertIn("WEB-001", body)
+
+    def test_csv_export_invalid_department_returns_validation_error(self):
+        response = self.client.get("/search.csv?budget=100000000&department=DROP%20TABLE")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("El filtro de departamento seleccionado no es válido.", response.text)
 
     def test_invalid_department_returns_validation_error(self):
         response = self.client.get("/search?budget=100000000&department=DROP%20TABLE")
