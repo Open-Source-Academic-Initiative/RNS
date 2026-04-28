@@ -29,11 +29,13 @@ class SecopExtractor:
         max_budget: float = DEFAULT_BUDGET,
         department: Optional[str] = None,
         limit: int = DEFAULT_LIMIT,
+        process_status: Optional[str] = None,
     ):
         """Fetches raw records using the shared repository query logic."""
         return await self.repository.fetch_raw_records(
             max_budget=max_budget,
             department=department,
+            process_status=process_status,
             limit=limit,
         )
 
@@ -47,6 +49,7 @@ class SecopExtractor:
                 "closing_date": tender.closing_date.strftime("%Y-%m-%d"),
                 "base_price": tender.base_price,
                 "name": tender.name,
+                "status": tender.status,
                 "url": tender.url,
             }
             for tender in sorted(tenders, key=lambda item: item.base_price, reverse=True)
@@ -66,6 +69,7 @@ def _print_results(results):
     for result in results:
         print(f"ENTITY: {result['entity']}")
         print(f"PRICE:  ${result['base_price']:,.2f} COP")
+        print(f"STATUS: {result['status']}")
         print(f"NAME:   {result['name']}")
         print(f"URL:    {result['url']}")
         print("-" * 80)

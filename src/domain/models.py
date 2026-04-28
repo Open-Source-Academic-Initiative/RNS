@@ -33,5 +33,6 @@ class TenderRepository(Protocol):
         department: Optional[str] = None,
         keyword: Optional[str] = None,
         limit: int = 1000,
+        process_status: Optional[str] = None,
     ) -> List[Tender]:
         ...
