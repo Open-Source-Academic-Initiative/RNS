@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 
-from src.application.validators import normalize_department
+from src.application.validators import normalize_department, normalize_process_status
 from src.domain.models import Tender
 from src.presentation.web import app, get_tender_service
 
@@ -13,13 +13,22 @@ class StubTenderService:
     def __init__(self) -> None:
         self.calls: list[dict] = []
 
-    async def execute(self, budget: float, department: str | None = None, keyword: str | None = None):
+    async def execute(
+        self,
+        budget: float,
+        department: str | None = None,
+        keyword: str | None = None,
+        process_status: str | None = None,
+    ):
         normalized_department = normalize_department(department)
+        normalized_process_status = normalize_process_status(process_status)
         self.calls.append({
             "budget": budget,
             "department": normalized_department,
             "keyword": keyword,
+            "process_status": normalized_process_status,
         })
+        statuses = ["Borrador", "Publicado", "Publicado"]
         tenders = [
             Tender(
                 id=f"WEB-{index:03d}",
@@ -32,12 +41,15 @@ class StubTenderService:
                 closing_date=datetime.now() + timedelta(days=7 + index),
                 url=f"https://example.test/process/WEB-{index:03d}",
                 department=normalized_department,
+                status=statuses[index - 1],
             )
             for index in range(1, 4)
         ]
         if keyword:
             needle = keyword.lower()
             tenders = [t for t in tenders if needle in t.name.lower()]
+        if normalized_process_status != "Todos":
+            tenders = [t for t in tenders if t.status == normalized_process_status]
         return tenders
 
 
@@ -70,6 +82,7 @@ class TestWebInterface(unittest.TestCase):
         self.assertIn("SECOP II - Radar TI", response.text)
         self.assertIn("Parámetros de Búsqueda", response.text)
         self.assertIn("Palabra clave", response.text)
+        self.assertIn("Todos abiertos", response.text)
 
     def test_search_endpoint_renders_results(self):
         response = self.client.get("/search?budget=100000000&department=Todos")
@@ -78,6 +91,8 @@ class TestWebInterface(unittest.TestCase):
         self.assertIn("Licitaciones Encontradas: 3", response.text)
         self.assertIn("Mock Entity 1", response.text)
         self.assertIn("Desarrollo de software #1", response.text)
+        self.assertIn("Borrador", response.text)
+        self.assertIn("Publicado", response.text)
         self.assertIn("Exportar CSV", response.text)
 
     def test_frontend_is_local_and_avoids_modal_inline_data_handlers(self):
@@ -95,6 +110,23 @@ class TestWebInterface(unittest.TestCase):
         last_call = _stub_instance.calls[-1]
         self.assertEqual(last_call["keyword"], "KUBE")
 
+    def test_search_accepts_legacy_atlantico_department_without_accent(self):
+        response = self.client.get("/search?budget=100000000&department=Atlantico")
+
+        self.assertEqual(response.status_code, 200)
+        last_call = _stub_instance.calls[-1]
+        self.assertEqual(last_call["department"], "Atlántico")
+
+    def test_search_filters_by_process_status(self):
+        response = self.client.get("/search?budget=100000000&department=Todos&process_status=Borrador")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Licitaciones Encontradas: 1", response.text)
+        self.assertIn("Mock Entity 1", response.text)
+        self.assertNotIn("Mock Entity 2", response.text)
+        last_call = _stub_instance.calls[-1]
+        self.assertEqual(last_call["process_status"], "Borrador")
+
     def test_pagination_controls_render(self):
         response = self.client.get("/search?budget=100000000&department=Todos&per_page=1")
 
@@ -110,6 +142,7 @@ class TestWebInterface(unittest.TestCase):
         body = response.text
         self.assertIn("id,reference,entity", body)
         self.assertIn("WEB-001", body)
+        self.assertIn("Borrador", body)
 
     def test_csv_export_invalid_department_returns_validation_error(self):
         response = self.client.get("/search.csv?budget=100000000&department=DROP%20TABLE")
@@ -117,11 +150,23 @@ class TestWebInterface(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("El filtro de departamento seleccionado no es válido.", response.text)
 
+    def test_csv_export_invalid_process_status_returns_validation_error(self):
+        response = self.client.get("/search.csv?budget=100000000&process_status=Seleccionado")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("El filtro de estado seleccionado no es válido.", response.text)
+
     def test_invalid_department_returns_validation_error(self):
         response = self.client.get("/search?budget=100000000&department=DROP%20TABLE")
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("El filtro de departamento seleccionado no es válido.", response.text)
+
+    def test_invalid_process_status_returns_validation_error(self):
+        response = self.client.get("/search?budget=100000000&process_status=Seleccionado")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("El filtro de estado seleccionado no es válido.", response.text)
 
     def test_template_exists(self):
         self.assertTrue(os.path.exists("templates/index.html"))

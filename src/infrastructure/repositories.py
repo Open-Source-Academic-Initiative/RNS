@@ -7,7 +7,12 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from src.application.validators import DEFAULT_DEPARTMENT, normalize_department
+from src.application.validators import (
+    DEFAULT_DEPARTMENT,
+    DEFAULT_PROCESS_STATUS,
+    normalize_department,
+    normalize_process_status,
+)
 from src.domain.models import Tender, TenderRepository
 from src.infrastructure.constants import IT_KEYWORD_PATTERN, SOCRATA_LIKE_SEEDS
 
@@ -15,11 +20,13 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE = 100
 DEFAULT_MAX_PAGES = 20
+DEFAULT_PAGE_BATCH_SIZE = 4
 DEFAULT_TIMEOUT_SECONDS = 30.0
 DEFAULT_CACHE_TTL_SECONDS = 300.0
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_BACKOFF_BASE_SECONDS = 0.5
 DEFAULT_TIMEZONE = "America/Bogota"
+DEFAULT_MAX_SEED_CLAUSE_LENGTH = 6000
 DEFAULT_URL = "#"
 DEFAULT_IDENTIFIER = "N/A"
 UNKNOWN_STATUS = "Unknown"
@@ -27,6 +34,21 @@ DEFAULT_ORDER_BY = "fecha_de_recepcion_de ASC, precio_base DESC"
 DATE_FORMAT = "%Y-%m-%d"
 SODA_DATE_FORMAT = "%Y-%m-%dT00:00:00.000"
 USER_AGENT = "RNS/2.2 (+https://github.com/Open-Source-Academic-Initiative/RNS)"
+SECOP_SELECT_FIELDS = (
+    "id_del_proceso",
+    "referencia_del_proceso",
+    "entidad",
+    "nombre_del_procedimiento",
+    "descripci_n_del_procedimiento",
+    "precio_base",
+    "fecha_de_publicacion_del",
+    "fecha_de_recepcion_de",
+    "urlproceso",
+    "departamento_entidad",
+    "estado_de_apertura_del_proceso",
+    "estado_del_procedimiento",
+)
+SECOP_SELECT_CLAUSE = ", ".join(SECOP_SELECT_FIELDS)
 
 
 class _TTLCache:
@@ -63,6 +85,7 @@ class SocrataTenderRepository(TenderRepository):
         client: Optional[httpx.AsyncClient] = None,
         page_size: int = DEFAULT_PAGE_SIZE,
         max_pages: int = DEFAULT_MAX_PAGES,
+        page_batch_size: int = DEFAULT_PAGE_BATCH_SIZE,
         cache_ttl: float = DEFAULT_CACHE_TTL_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
         backoff_base: float = DEFAULT_BACKOFF_BASE_SECONDS,
@@ -70,12 +93,21 @@ class SocrataTenderRepository(TenderRepository):
     ):
         self._injected_client = client
         self._client: Optional[httpx.AsyncClient] = client
-        self.page_size = page_size
-        self.max_pages = max_pages
+        self.page_size = max(1, page_size)
+        self.max_pages = max(1, max_pages)
+        self.page_batch_size = max(1, page_batch_size)
         self.max_retries = max(1, max_retries)
         self.backoff_base = backoff_base
         self._tz = ZoneInfo(timezone_name)
         self._cache = _TTLCache(cache_ttl)
+        self._seed_clause = self._build_seed_clause()
+        if len(self._seed_clause) > DEFAULT_MAX_SEED_CLAUSE_LENGTH:
+            logger.warning(
+                "Socrata seed clause length (%d chars) exceeds %d; disabling remote seed prefilter.",
+                len(self._seed_clause),
+                DEFAULT_MAX_SEED_CLAUSE_LENGTH,
+            )
+            self._seed_clause = ""
 
     async def aclose(self) -> None:
         """Release the internally-managed HTTP client, if any."""
@@ -94,6 +126,7 @@ class SocrataTenderRepository(TenderRepository):
         department: Optional[str] = None,
         keyword: Optional[str] = None,
         limit: int = 1000,
+        process_status: Optional[str] = None,
     ) -> List[Tender]:
         """Fetches active IT tenders using concurrent SECOP II pages."""
         if limit <= 0:
@@ -101,25 +134,50 @@ class SocrataTenderRepository(TenderRepository):
 
         normalized_department = normalize_department(department)
         normalized_keyword = self._normalize_keyword(keyword)
+        normalized_process_status = normalize_process_status(process_status)
 
-        cache_key = (max_budget, normalized_department, normalized_keyword)
+        cache_key = (
+            max_budget,
+            normalized_department,
+            normalized_keyword,
+            normalized_process_status,
+            limit,
+        )
         cached = self._cache.get(cache_key)
         if cached is not None:
             return cached[:limit]
 
-        raw_pages = await self._fetch_all_pages(max_budget, normalized_department)
-
         matching_tenders: List[Tender] = []
         seen_ids: set[str] = set()
-        for raw_page in raw_pages:
-            for tender in self.map_raw_records(raw_page):
-                if tender.id in seen_ids:
-                    continue
-                if normalized_keyword and not self._matches_keyword(tender, normalized_keyword):
-                    continue
-                seen_ids.add(tender.id)
-                matching_tenders.append(tender)
+        page_cap = self._page_cap_for_limit(None)
+        for page_start in range(0, page_cap, self.page_batch_size):
+            raw_pages = await self._fetch_page_batch(
+                max_budget=max_budget,
+                department=normalized_department,
+                process_status=normalized_process_status,
+                start_page=page_start,
+                page_count=min(self.page_batch_size, page_cap - page_start),
+            )
+            stop_fetching = False
+            for raw_page in raw_pages:
+                for tender in self._map_raw_records_unsorted(raw_page):
+                    if tender.id in seen_ids:
+                        continue
+                    if normalized_keyword and not self._matches_keyword(tender, normalized_keyword):
+                        continue
+                    seen_ids.add(tender.id)
+                    matching_tenders.append(tender)
+                    if len(matching_tenders) >= limit:
+                        matching_tenders.sort(key=lambda item: item.closing_date)
+                        self._cache.set(cache_key, matching_tenders)
+                        return matching_tenders[:limit]
+                if len(raw_page) < self.page_size:
+                    stop_fetching = True
+                    break
+            if stop_fetching:
+                break
 
+        matching_tenders.sort(key=lambda item: item.closing_date)
         self._cache.set(cache_key, matching_tenders)
         return matching_tenders[:limit]
 
@@ -128,13 +186,20 @@ class SocrataTenderRepository(TenderRepository):
         max_budget: float,
         department: Optional[str] = None,
         limit: int = 1000,
+        process_status: Optional[str] = None,
     ) -> List[dict]:
         """Fetches raw ordered pages from SECOP II for compatibility use cases."""
         if limit <= 0:
             return []
 
         normalized_department = normalize_department(department)
-        raw_pages = await self._fetch_all_pages(max_budget, normalized_department)
+        normalized_process_status = normalize_process_status(process_status)
+        raw_pages = await self._fetch_all_pages(
+            max_budget,
+            normalized_department,
+            normalized_process_status,
+            raw_limit=limit,
+        )
 
         raw_results: List[dict] = []
         for page in raw_pages:
@@ -146,45 +211,82 @@ class SocrataTenderRepository(TenderRepository):
 
     def map_raw_records(self, raw_records: Iterable[dict]) -> List[Tender]:
         """Maps raw SECOP II records into sorted domain entities."""
+        tenders = self._map_raw_records_unsorted(raw_records)
+        return sorted(tenders, key=lambda item: item.closing_date)
+
+    def _map_raw_records_unsorted(self, raw_records: Iterable[dict]) -> List[Tender]:
+        """Maps raw SECOP II records without reordering them."""
         tenders: List[Tender] = []
         for raw_record in raw_records:
             tender = self._build_tender(raw_record)
             if tender is not None:
                 tenders.append(tender)
-        return sorted(tenders, key=lambda item: item.closing_date)
+        return tenders
 
     async def _fetch_all_pages(
         self,
         max_budget: float,
         department: str,
+        process_status: str,
+        raw_limit: Optional[int] = None,
+    ) -> List[List[dict]]:
+        page_cap = self._page_cap_for_limit(raw_limit)
+        all_pages: List[List[dict]] = []
+        for page_start in range(0, page_cap, self.page_batch_size):
+            pages = await self._fetch_page_batch(
+                max_budget=max_budget,
+                department=department,
+                process_status=process_status,
+                start_page=page_start,
+                page_count=min(self.page_batch_size, page_cap - page_start),
+            )
+
+            for page in pages:
+                all_pages.append(page)
+                if len(page) < self.page_size:
+                    return all_pages
+        return all_pages
+
+    async def _fetch_page_batch(
+        self,
+        max_budget: float,
+        department: str,
+        process_status: str,
+        start_page: int,
+        page_count: int,
     ) -> List[List[dict]]:
         tasks = [
             self._fetch_page(
                 max_budget=max_budget,
                 department=department,
+                process_status=process_status,
                 limit=self.page_size,
-                offset=page_number * self.page_size,
+                offset=(start_page + page_index) * self.page_size,
             )
-            for page_number in range(self.max_pages)
+            for page_index in range(page_count)
         ]
         pages = await asyncio.gather(*tasks)
+        return list(pages)
 
-        truncated: List[List[dict]] = []
-        for page in pages:
-            truncated.append(page)
-            if len(page) < self.page_size:
-                break
-        return truncated
+    def _page_cap_for_limit(self, raw_limit: Optional[int]) -> int:
+        if raw_limit is None:
+            return self.max_pages
+        if raw_limit <= 0:
+            return 0
+        pages_for_limit = (raw_limit + self.page_size - 1) // self.page_size
+        return max(1, min(self.max_pages, pages_for_limit))
 
     async def _fetch_page(
         self,
         max_budget: float,
         department: str,
+        process_status: str,
         limit: int,
         offset: int,
     ) -> List[dict]:
         params: dict[str, Any] = {
-            "$where": self._build_where_clause(max_budget, department),
+            "$select": SECOP_SELECT_CLAUSE,
+            "$where": self._build_where_clause(max_budget, department, process_status),
             "$limit": limit,
             "$offset": offset,
             "$order": DEFAULT_ORDER_BY,
@@ -214,7 +316,12 @@ class SocrataTenderRepository(TenderRepository):
                 await asyncio.sleep(self.backoff_base * (2 ** attempt))
         return []
 
-    def _build_where_clause(self, max_budget: float, department: str) -> str:
+    def _build_where_clause(
+        self,
+        max_budget: float,
+        department: str,
+        process_status: str,
+    ) -> str:
         today_iso = datetime.now(self._tz).strftime(SODA_DATE_FORMAT)
         clauses = [
             f"precio_base <= {max_budget}",
@@ -224,10 +331,12 @@ class SocrataTenderRepository(TenderRepository):
         if department != DEFAULT_DEPARTMENT:
             safe_department = department.replace("'", "''")
             clauses.append(f"departamento_entidad = '{safe_department}'")
+        if process_status != DEFAULT_PROCESS_STATUS:
+            safe_process_status = process_status.replace("'", "''")
+            clauses.append(f"estado_del_procedimiento = '{safe_process_status}'")
 
-        seed_clause = self._build_seed_clause()
-        if seed_clause:
-            clauses.append(seed_clause)
+        if self._seed_clause:
+            clauses.append(self._seed_clause)
 
         return " AND ".join(clauses)
 
@@ -261,7 +370,8 @@ class SocrataTenderRepository(TenderRepository):
                 closing_date=self._parse_date(raw_record.get("fecha_de_recepcion_de"), datetime.max),
                 url=self._extract_url(raw_record.get("urlproceso", DEFAULT_URL)),
                 department=raw_record.get("departamento_entidad"),
-                status=raw_record.get("estado_de_apertura_del_proceso", UNKNOWN_STATUS),
+                status=raw_record.get("estado_del_procedimiento")
+                or raw_record.get("estado_de_apertura_del_proceso", UNKNOWN_STATUS),
             )
         except (TypeError, ValueError):
             return None

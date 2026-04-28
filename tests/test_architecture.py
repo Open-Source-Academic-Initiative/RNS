@@ -21,11 +21,13 @@ class MockTenderRepository(TenderRepository):
         department: Optional[str] = None,
         keyword: Optional[str] = None,
         limit: int = 1000,
+        process_status: Optional[str] = None,
     ) -> List[Tender]:
         self.last_call = {
             "max_budget": max_budget,
             "department": department,
             "keyword": keyword,
+            "process_status": process_status,
             "limit": limit,
         }
         return [
@@ -45,12 +47,14 @@ class MockTenderRepository(TenderRepository):
 
 
 def _build_transport(pages):
-    calls = {"count": 0, "offsets": []}
+    calls = {"count": 0, "offsets": [], "wheres": [], "selects": []}
 
     def handler(request: httpx.Request) -> httpx.Response:
         offset = int(request.url.params.get("$offset", "0"))
         calls["count"] += 1
         calls["offsets"].append(offset)
+        calls["wheres"].append(request.url.params.get("$where", ""))
+        calls["selects"].append(request.url.params.get("$select", ""))
         page_index = calls["count"] - 1
         payload = pages[page_index] if page_index < len(pages) else []
         return httpx.Response(200, content=json.dumps(payload), headers={"Content-Type": "application/json"})
@@ -94,6 +98,14 @@ class TestHexagonalArchitecture(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(repo.last_call["keyword"], "kubernetes")
 
+    async def test_use_case_threads_process_status_to_repository(self):
+        repo = MockTenderRepository()
+        service = SearchActiveTenders(repo)
+
+        await service.execute(budget=100000000, process_status="Publicado")
+
+        self.assertEqual(repo.last_call["process_status"], "Publicado")
+
     async def test_business_validation_negative_budget(self):
         repo = MockTenderRepository()
         service = SearchActiveTenders(repo)
@@ -101,9 +113,22 @@ class TestHexagonalArchitecture(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await service.execute(budget=-100)
 
+    async def test_business_validation_unsupported_process_status(self):
+        repo = MockTenderRepository()
+        service = SearchActiveTenders(repo)
+
+        with self.assertRaises(ValueError):
+            await service.execute(budget=100000000, process_status="Seleccionado")
+
 
 class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
-    def _raw_item(self, process_id: str, name: str, closing_date: str) -> dict:
+    def _raw_item(
+        self,
+        process_id: str,
+        name: str,
+        closing_date: str,
+        process_status: str = "Publicado",
+    ) -> dict:
         return {
             "id_del_proceso": process_id,
             "referencia_del_proceso": f"REF-{process_id}",
@@ -115,6 +140,7 @@ class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
             "entidad": "Test Entity",
             "urlproceso": "http://test.com",
             "estado_de_apertura_del_proceso": "Abierto",
+            "estado_del_procedimiento": process_status,
         }
 
     async def test_repository_fetches_pages_concurrently_and_dedupes(self):
@@ -141,6 +167,59 @@ class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(calls["count"], 3)
         self.assertTrue(all(isinstance(item, Tender) for item in results))
         self.assertEqual(sorted(calls["offsets"]), [0, 2, 4])
+
+    async def test_repository_filters_by_process_status_in_socrata_query(self):
+        pages = [[
+            self._raw_item("1", "Desarrollo de software a la medida", "2026-12-31T00:00:00.000"),
+        ]]
+        transport, calls = _build_transport(pages)
+        client = httpx.AsyncClient(transport=transport)
+        repo = SocrataTenderRepository(client=client, page_size=5, max_pages=1, cache_ttl=0)
+
+        try:
+            results = await repo.search_by_criteria(
+                max_budget=500000000,
+                process_status="Publicado",
+                limit=5,
+            )
+        finally:
+            await client.aclose()
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].status, "Publicado")
+        self.assertIn("estado_de_apertura_del_proceso = 'Abierto'", calls["wheres"][0])
+        self.assertIn("estado_del_procedimiento = 'Publicado'", calls["wheres"][0])
+        self.assertIn("estado_del_procedimiento", calls["selects"][0])
+        self.assertIn("urlproceso", calls["selects"][0])
+        self.assertNotIn("nit_entidad", calls["selects"][0])
+
+    async def test_fetch_raw_records_uses_limit_to_cap_socrata_pages(self):
+        pages = [
+            [
+                self._raw_item("1", "Desarrollo de software", "2026-12-31T00:00:00.000"),
+                self._raw_item("2", "Servicios cloud", "2026-12-30T00:00:00.000"),
+            ],
+            [
+                self._raw_item("3", "Auditoría informática", "2026-12-29T00:00:00.000"),
+                self._raw_item("4", "Ciberseguridad", "2026-12-28T00:00:00.000"),
+            ],
+            [
+                self._raw_item("5", "Fábrica de software", "2026-12-27T00:00:00.000"),
+                self._raw_item("6", "Gobierno de datos", "2026-12-26T00:00:00.000"),
+            ],
+        ]
+        transport, calls = _build_transport(pages)
+        client = httpx.AsyncClient(transport=transport)
+        repo = SocrataTenderRepository(client=client, page_size=2, max_pages=5, cache_ttl=0)
+
+        try:
+            results = await repo.fetch_raw_records(max_budget=500000000, limit=3)
+        finally:
+            await client.aclose()
+
+        self.assertEqual(len(results), 3)
+        self.assertEqual(calls["count"], 2)
+        self.assertEqual(sorted(calls["offsets"]), [0, 2])
 
     async def test_repository_uses_cache_on_repeat_call(self):
         pages = [[

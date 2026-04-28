@@ -13,7 +13,13 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from src.application.services import SearchActiveTenders
-from src.application.validators import ALLOWED_DEPARTMENTS, DEFAULT_DEPARTMENT
+from src.application.validators import (
+    ALLOWED_DEPARTMENTS,
+    ALLOWED_PROCESS_STATUSES,
+    DEFAULT_DEPARTMENT,
+    DEFAULT_PROCESS_STATUS,
+    normalize_department,
+)
 from src.domain.models import Tender
 from src.infrastructure.repositories import SocrataTenderRepository
 
@@ -27,15 +33,21 @@ MAX_PAGE_SIZE = 100
 MAX_KEYWORD_LENGTH = 64
 NEGATIVE_BUDGET_ERROR = "El presupuesto debe ser un valor positivo."
 INVALID_DEPARTMENT_ERROR = "El filtro de departamento seleccionado no es válido."
+INVALID_PROCESS_STATUS_ERROR = "El filtro de estado seleccionado no es válido."
 UNEXPECTED_SEARCH_ERROR = "Se produjo un error al procesar la solicitud. Inténtalo de nuevo más tarde."
 DEPARTMENT_OPTIONS = [
     {"value": DEFAULT_DEPARTMENT, "label": "Todos (Nacional)"},
     {"value": "Distrito Capital de Bogotá", "label": "Bogotá D.C."},
     {"value": "Antioquia", "label": "Antioquia (Medellín)"},
     {"value": "Valle del Cauca", "label": "Valle del Cauca (Cali)"},
-    {"value": "Atlantico", "label": "Atlántico (Barranquilla)"},
+    {"value": "Atlántico", "label": "Atlántico (Barranquilla)"},
     {"value": "Santander", "label": "Santander"},
     {"value": "Cundinamarca", "label": "Cundinamarca"},
+]
+PROCESS_STATUS_OPTIONS = [
+    {"value": DEFAULT_PROCESS_STATUS, "label": "Todos abiertos"},
+    {"value": "Borrador", "label": "Borrador"},
+    {"value": "Publicado", "label": "Publicado"},
 ]
 
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -75,15 +87,24 @@ def get_tender_service(request: Request) -> SearchActiveTenders:
 
 
 def _safe_department_selection(department: str) -> str:
-    if department in ALLOWED_DEPARTMENTS:
-        return department
-    return DEFAULT_DEPARTMENT
+    try:
+        return normalize_department(department)
+    except ValueError:
+        return DEFAULT_DEPARTMENT
+
+
+def _safe_process_status_selection(process_status: str) -> str:
+    if process_status in ALLOWED_PROCESS_STATUSES:
+        return process_status
+    return DEFAULT_PROCESS_STATUS
 
 
 def _translate_validation_error(error: ValueError) -> str:
     message = str(error)
     if message == "Unsupported department filter":
         return INVALID_DEPARTMENT_ERROR
+    if message == "Unsupported process status filter":
+        return INVALID_PROCESS_STATUS_ERROR
     if message == "Budget cannot be negative":
         return NEGATIVE_BUDGET_ERROR
     return message
@@ -120,6 +141,7 @@ def _build_page_context(
     *,
     budget: int,
     department_sel: str,
+    process_status_sel: str,
     keyword: str,
     results: Optional[List[Tender]],
     pagination: Optional[dict],
@@ -131,8 +153,10 @@ def _build_page_context(
         "pagination": pagination,
         "budget": budget,
         "department_sel": department_sel,
+        "process_status_sel": process_status_sel,
         "keyword": keyword,
         "departments": DEPARTMENT_OPTIONS,
+        "process_statuses": PROCESS_STATUS_OPTIONS,
         "error": error,
         "is_simulation": False,
     }
@@ -143,6 +167,7 @@ def _render_index(
     *,
     budget: int = DEFAULT_BUDGET,
     department_sel: str = DEFAULT_DEPARTMENT,
+    process_status_sel: str = DEFAULT_PROCESS_STATUS,
     keyword: str = "",
     results: Optional[List[Tender]] = None,
     pagination: Optional[dict] = None,
@@ -156,6 +181,7 @@ def _render_index(
             request,
             budget=budget,
             department_sel=department_sel,
+            process_status_sel=process_status_sel,
             keyword=keyword,
             results=results,
             pagination=pagination,
@@ -170,11 +196,13 @@ async def _execute_search(
     budget: float,
     department: str,
     keyword: Optional[str],
+    process_status: str,
 ) -> List[Tender]:
     return await service.execute(
         budget=budget,
         department=department,
         keyword=keyword,
+        process_status=process_status,
     )
 
 
@@ -189,6 +217,7 @@ async def search(
     request: Request,
     budget: Annotated[float, Query(gt=0, le=MAX_BUDGET)],
     department: Annotated[str, Query(max_length=64)] = DEFAULT_DEPARTMENT,
+    process_status: Annotated[str, Query(max_length=32)] = DEFAULT_PROCESS_STATUS,
     keyword: Annotated[str, Query(max_length=MAX_KEYWORD_LENGTH)] = "",
     page: Annotated[int, Query(ge=1, le=10000)] = 1,
     per_page: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
@@ -198,12 +227,20 @@ async def search(
     normalized_keyword = _normalize_keyword(keyword)
     try:
         selected_department = _safe_department_selection(department)
-        results = await _execute_search(service, budget, department, normalized_keyword)
+        selected_process_status = _safe_process_status_selection(process_status)
+        results = await _execute_search(
+            service,
+            budget,
+            department,
+            normalized_keyword,
+            process_status,
+        )
         page_slice, pagination = _paginate(results, page, per_page)
         return _render_index(
             request,
             budget=int(budget),
             department_sel=selected_department,
+            process_status_sel=selected_process_status,
             keyword=normalized_keyword or "",
             results=page_slice,
             pagination=pagination,
@@ -213,6 +250,7 @@ async def search(
             request,
             budget=int(budget),
             department_sel=DEFAULT_DEPARTMENT,
+            process_status_sel=DEFAULT_PROCESS_STATUS,
             keyword=normalized_keyword or "",
             results=[],
             pagination=None,
@@ -225,6 +263,7 @@ async def search(
             request,
             budget=int(budget),
             department_sel=_safe_department_selection(department),
+            process_status_sel=_safe_process_status_selection(process_status),
             keyword=normalized_keyword or "",
             results=[],
             pagination=None,
@@ -237,13 +276,20 @@ async def search(
 async def search_csv(
     budget: Annotated[float, Query(gt=0, le=MAX_BUDGET)],
     department: Annotated[str, Query(max_length=64)] = DEFAULT_DEPARTMENT,
+    process_status: Annotated[str, Query(max_length=32)] = DEFAULT_PROCESS_STATUS,
     keyword: Annotated[str, Query(max_length=MAX_KEYWORD_LENGTH)] = "",
     service: SearchActiveTenders = Depends(get_tender_service),
 ):
     """Exports the current search result as a CSV file."""
     normalized_keyword = _normalize_keyword(keyword)
     try:
-        results = await _execute_search(service, budget, department, normalized_keyword)
+        results = await _execute_search(
+            service,
+            budget,
+            department,
+            normalized_keyword,
+            process_status,
+        )
     except ValueError as error:
         return PlainTextResponse(
             _translate_validation_error(error),

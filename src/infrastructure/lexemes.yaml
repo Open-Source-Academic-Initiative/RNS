@@ -195,6 +195,171 @@ categories:
     - dns
     - ldap
 
+  open_source_solutions:
+    - redhat
+    - red hat
+    - rhel
+    - suse
+    - opensuse
+    - sles
+    - canonical
+    - ubuntu
+    - debian
+    - fedora
+    - centos
+    - rocky linux
+    - alma linux
+    - kubernetes
+    - k8s
+    - openshift
+    - rancher
+    - k3s
+    - microk8s
+    - docker
+    - podman
+    - containerd
+    - cri-o
+    - helm
+    - argocd
+    - argo cd
+    - fluxcd
+    - ansible
+    - terraform
+    - openstack
+    - cloudstack
+    - proxmox
+    - ceph
+    - glusterfs
+    - minio
+    - postgres
+    - postgresql
+    - mysql
+    - mariadb
+    - mongodb
+    - redis
+    - keycloak
+    - jenkins
+    - gitlab
+    - gitea
+    - prometheus
+    - grafana
+    - zabbix
+    - elasticsearch
+    - opensearch
+    - kibana
+    - logstash
+    - wazuh
+    - nextcloud
+    - owncloud
+    - alfresco
+    - odoo
+    - erpnext
+    - moodle
+    - apache
+    - nginx
+    - tomcat
+    - jboss
+    - wildfly
+    - apache kafka
+    - kafka
+    - rabbitmq
+    - airflow
+    - superset
+    - jupyter
+    - eclipse
+    - libreoffice
+    - onlyoffice
+    - collabora
+
+  lms_elearning:
+    - lms
+    - learning management system
+    - sistema de gestión de aprendizaje
+    - sistema de gestion de aprendizaje
+    - plataforma de aprendizaje
+    - plataforma educativa
+    - plataforma virtual
+    - aula virtual
+    - campus virtual
+    - educación virtual
+    - educacion virtual
+    - e-learning
+    - elearning
+    - b-learning
+    - blearning
+    - moodle
+    - sakai
+    - canvas lms
+    - blackboard
+    - chamilo
+    - open edx
+    - edx
+    - ova
+    - objeto virtual de aprendizaje
+    - objetos virtuales de aprendizaje
+    - scorm
+    - xapi
+    - tin can api
+    - repositorio de contenidos educativos
+    - contenidos digitales educativos
+    - recursos educativos digitales
+    - curso virtual
+    - cursos virtuales
+    - diseño instruccional
+    - mediación pedagógica digital
+    - mediacion pedagogica digital
+    - analítica de aprendizaje
+    - analitica de aprendizaje
+    - gestión de lms
+    - gestion de lms
+    - administración de lms
+    - administracion de lms
+
+  ai_mlops:
+    - ia generativa
+    - inteligencia artificial generativa
+    - llm
+    - large language model
+    - modelos de lenguaje
+    - modelo de lenguaje
+    - modelo fundacional
+    - modelos fundacionales
+    - foundation model
+    - prompt engineering
+    - ingeniería de prompts
+    - ingenieria de prompts
+    - embeddings
+    - rag
+    - retrieval augmented generation
+    - agentes de ia
+    - agente de ia
+    - chatbot inteligente
+    - asistente virtual inteligente
+    - aprendizaje automático
+    - aprendizaje automatico
+    - deep learning
+    - redes neuronales
+    - visión por computador
+    - vision por computador
+    - procesamiento de lenguaje natural
+    - nlp
+    - modelos predictivos
+    - modelo predictivo
+    - modelos generativos
+    - modelo generativo
+    - mlops
+    - aiops
+    - modelops
+    - machine learning operations
+    - ciclo de vida de modelos
+    - entrenamiento de modelos
+    - despliegue de modelos
+    - monitoreo de modelos
+    - inferencia
+    - fine.?tuning
+    - ajuste fino
+    - sml
+
   formats:
     - yaml
     - json
@@ -245,27 +410,43 @@ socrata_like_seeds:
   - datos
   - seguridad
   - firewall
+  - hardening
   - machine
   - learning
   - inteligencia
-  - analisis
   - análisis
-  - predictivo
   - kubernetes
   - k8s
   - devops
-  - cluster
+  - redhat
+  - red hat
+  - rhel
+  - suse
+  - openshift
+  - rancher
+  - docker
+  - podman
+  - ansible
+  - terraform
+  - postgresql
+  - grafana
+  - wazuh
+  - lms
+  - moodle
+  - sakai
+  - ova
+  - scorm
+  - aprendizaje
+  - aula virtual
+  - llm
+  - sml
+  - modelos
+  - rag
+  - mlops
+  - nlp
   - mvp
   - poc
-  - prototipo
-  - concepto
   - interoperabilidad
   - arquitectura
   - conocimiento
-  - propiedad intelectual
   - firma
-  - biometr
-  - licencias
-  - comput
-  - cómput
-  - servidor
