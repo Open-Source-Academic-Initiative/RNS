@@ -1,452 +1,114 @@
-# IT Lexeme Matrix V2.4 — edit this file to tune semantic filtering.
-#
-# categories:         regex fragments grouped by domain (joined with `|` to build the pattern).
-# socrata_like_seeds: broad substrings pushed to Socrata `$where` as an OR chain of
-#                     `UPPER(nombre|descripción) LIKE '%SEED%'` clauses to reduce
-#                     payload size. Keep the list intentionally broad enough not to
-#                     drop known true positives; the regex post-filter remains
-#                     authoritative for precision.
+# IT Lexeme Matrix V3.0 — Aligned with OpenSAI Strategic Lines.
 
 categories:
-  core:
-    - software
-    - informátic[ao]
-    - sistemas
-    - computación
-    - desarrollo web
-    - desarrollo de software
-    - desarrollo tecnológico
-    - web
-    - api
-    - datos
-    - programación
-    - cloud
-    - nube
-    - tecnologí[ao]s de la información
-    - tic
-    - ciberseguridad
-    - machine learning
-    - hardware
+  civic_tech:
+    - datos abiertos
+    - buscador de contratos
+    - secop
+    - transparencia administrativa
+    - auditoría ciudadana
+    - veeduría digital
+    - rendición de cuentas
 
-  research:
-    - i\+d\+i
-    - investigación aplicada
-    - investigación y desarrollo
-    - ciencia de datos
-    - análisis predictivo
-    - algoritmos
-    - inteligencia artificial
-    - ia
-
-  innovation:
-    - innovación abierta
-    - gestión tecnológica
-    - prospectiva tecnológica
-    - vigilancia tecnológica
-    - transferencia de tecnología
-    - madurez tecnológica
-    - trl
-
-  prototyping:
-    - prototipado
-    - mvp
-    - prueba de concepto
-    - poc
-    - fábrica de software
-    - laboratorio de innovación
-    - sandbox
-
-  knowledge:
-    - gestión del conocimiento
-    - propiedad intelectual
-    - patente
-    - derecho de autor
-    - licenciamiento abierto
-    - creative commons
-    - repositorio digital
-
-  transformation:
-    - transformación digital
-    - hoja de ruta
-    - roadmap tecnológico
-    - estándares técnicos
-    - interoperabilidad
-    - analítica avanzada
-
-  web_ux:
-    - diseño web
-    - página web
-    - sitio web
-    - portal web
-    - e-commerce
-    - tienda virtual
-    - interfaz
-    - ux/ui
-
-  digital_identity:
-    - firma digital
-    - certificado digital
-    - biometría
-    - identidad digital
-    - autenticación
-
-  consulting:
-    - consultoría especializada
-    - asesoría técnica
-    - apoyo a la gestión tics
-    - arquitectura empresarial
-    - gobierno de datos
-    - auditoría informática
-
-  support:
-    - mantenimiento preventivo
-    - mantenimiento correctivo
-    - soporte técnico
-    - mesa de ayuda
-    - help desk
-    - reparación
-
-  procurement:
-    - adquisición de licencias
-    - suscripción de software
-    - compra de equipos
-    - suministro tecnológico
-    - renovación tecnológica
-
-  linux:
-    - linux
-    - gnu
-    - ubuntu
-    - debian
-    - redhat
-    - rhel
-    - fedora
-    - centos
-    - kernel
-    - bash
-    - shell
-    - terminal
-
-  devops:
-    - sysadmin
-    - devops
-    - sre
-    - kubernetes
-    - k8s
-    - openshift
-    - container
-    - docker
-    - podman
-    - oci
-    - helm
-    - operator
-    - cluster
-    - node
-    - pod
-    - namespace
-    - ingress
-    - service
-    - deployment
-    - configmap
-    - secret
-
-  cicd:
-    - ci/cd
-    - git
-    - gitlab
-    - github
-    - pipeline
-    - iac
-    - ansible
-    - terraform
-    - virtualización
-    - kvm
-    - xen
-    - qemu
-
-  stack:
-    - apache
-    - nginx
-    - php
-    - python
-    - javascript
-    - typescript
-    - backend
-    - frontend
-    - fullstack
-    - rest
-    - microservicios
-    - monolito
-
-  platforms:
-    - postgresql
-    - mysql
-    - mariadb
-    - joomla
-    - wordpress
-    - cms
-    - plugin
-    - theme
-    - template
-    - hosting
-    - dominio
-    - ssl
-    - https
-    - dns
-    - ldap
-
-  open_source_solutions:
-    - redhat
-    - red hat
-    - rhel
-    - suse
-    - opensuse
-    - sles
-    - canonical
-    - ubuntu
-    - debian
-    - fedora
-    - centos
-    - rocky linux
-    - alma linux
-    - kubernetes
-    - k8s
-    - openshift
-    - rancher
-    - k3s
-    - microk8s
-    - docker
-    - podman
-    - containerd
-    - cri-o
-    - helm
-    - argocd
-    - argo cd
-    - fluxcd
-    - ansible
-    - terraform
-    - openstack
-    - cloudstack
-    - proxmox
-    - ceph
-    - glusterfs
-    - minio
-    - postgres
-    - postgresql
-    - mysql
-    - mariadb
-    - mongodb
-    - redis
-    - keycloak
-    - jenkins
-    - gitlab
-    - gitea
-    - prometheus
-    - grafana
-    - zabbix
-    - elasticsearch
-    - opensearch
-    - kibana
-    - logstash
-    - wazuh
-    - nextcloud
-    - owncloud
-    - alfresco
-    - odoo
-    - erpnext
+  lms_learning:
     - moodle
-    - apache
-    - nginx
-    - tomcat
-    - jboss
-    - wildfly
-    - apache kafka
-    - kafka
-    - rabbitmq
-    - airflow
-    - superset
-    - jupyter
-    - eclipse
-    - libreoffice
-    - onlyoffice
-    - collabora
-
-  lms_elearning:
-    - lms
-    - learning management system
-    - sistema de gestión de aprendizaje
-    - sistema de gestion de aprendizaje
-    - plataforma de aprendizaje
-    - plataforma educativa
-    - plataforma virtual
-    - aula virtual
-    - campus virtual
-    - educación virtual
-    - educacion virtual
-    - e-learning
-    - elearning
-    - b-learning
-    - blearning
-    - moodle
-    - sakai
-    - canvas lms
-    - blackboard
-    - chamilo
+    - openedx
     - open edx
-    - edx
-    - ova
-    - objeto virtual de aprendizaje
-    - objetos virtuales de aprendizaje
-    - scorm
-    - xapi
-    - tin can api
-    - repositorio de contenidos educativos
-    - contenidos digitales educativos
-    - recursos educativos digitales
-    - curso virtual
-    - cursos virtuales
-    - diseño instruccional
-    - mediación pedagógica digital
-    - mediacion pedagogica digital
-    - analítica de aprendizaje
-    - analitica de aprendizaje
-    - gestión de lms
-    - gestion de lms
-    - administración de lms
-    - administracion de lms
+    - campus virtual
+    - aula virtual
+    - plataforma educativa
+    - lms
+    - educación virtual
+    - gestión del aprendizaje
 
-  ai_mlops:
-    - ia generativa
-    - inteligencia artificial generativa
-    - llm
-    - large language model
-    - modelos de lenguaje
-    - modelo de lenguaje
-    - modelo fundacional
-    - modelos fundacionales
-    - foundation model
-    - prompt engineering
-    - ingeniería de prompts
-    - ingenieria de prompts
-    - embeddings
-    - rag
-    - retrieval augmented generation
-    - agentes de ia
-    - agente de ia
-    - chatbot inteligente
-    - asistente virtual inteligente
-    - aprendizaje automático
-    - aprendizaje automatico
-    - deep learning
-    - redes neuronales
-    - visión por computador
-    - vision por computador
-    - procesamiento de lenguaje natural
-    - nlp
-    - modelos predictivos
-    - modelo predictivo
-    - modelos generativos
-    - modelo generativo
-    - mlops
-    - aiops
-    - modelops
-    - machine learning operations
-    - ciclo de vida de modelos
-    - entrenamiento de modelos
-    - despliegue de modelos
-    - monitoreo de modelos
-    - inferencia
-    - fine.?tuning
-    - ajuste fino
-    - sml
+  accessibility:
+    - accesibilidad web
+    - wcag
+    - inclusión digital
+    - audiodescripción
+    - lector de pantalla
+    - nvda
+    - asistencia por voz
 
-  formats:
-    - yaml
-    - json
-    - markdown
-    - opensource
+  linux_infra:
+    - linux
+    - gnu/linux
+    - kvm
+    - libvirt
+    - servidor de datos
+    - infraestructura abierta
+    - soberanía tecnológica
+    - software libre
     - foss
-    - licencia
-    - licenciamiento
-    - gpl
-    - mit
-    - apache-2\.0
-    - automatización
+    - floss
 
-  observability_security:
-    - observabilidad
-    - logging
-    - monitoring
-    - prometheus
-    - grafana
-    - elk
+  ai_data_science:
+    - inteligencia artificial ética
+    - machine learning
+    - ciencia de datos
+    - gobernanza de datos
+    - tableros? de control
+    - r-studio
+    - rstudio
+    - anaconda
+    - jupyter
+    - análisis predictivo
+    - big data
+    - python
+    - fortran
+
+  academic_management:
+    - gestión académica
+    - transferencia tecnológica
+    - alfabetización digital
+    - movilidad académica
+    - relaciones interinstitucionales
+    - sniess
+    - repositorio digital
+    - contenido científico
+    - propiedad intelectual
+
+  core_it:
+    - software
+    - desarrollo de software
+    - fábrica de software
+    - api
+    - bases de datos
+    - ciberseguridad
     - seguridad informática
-    - seguridad de la información
-    - seguridad digital
-    - seguridad perimetral
-    - seguridad de redes
-    - hardening
-    - firewall
-    - selinux
-    - apparmor
+    - antivirus
+    - tic
+    - sistemas
 
-  packaging:
-    - paquete
-    - repositorio
-    - snap
-    - flatpak
-    - soluciones
-    - aplicaciones
+negative_exclusions:
+  - papelería
+  - útiles de oficina
+  - jardinería
+  - cafetería
+  - alimentación
+  - vigilancia privada
+  - uniformes
+  - combustible
+  - plántulas
+  - grúa canasta
+  - obras civiles
+  - obras eléctricas
+  - tableros eléctricos
+  - alcantarillado
+  - material de construcción
+  - mantenimiento de aire
 
 socrata_like_seeds:
-  - software
-  - tecnol
-  - inform
-  - sistemas
-  - cloud
-  - ciberseg
-  - hardware
-  - digital
-  - datos
-  - seguridad
-  - firewall
-  - hardening
-  - machine
-  - learning
-  - inteligencia
-  - análisis
-  - kubernetes
-  - k8s
-  - devops
-  - redhat
-  - red hat
-  - rhel
-  - suse
-  - openshift
-  - rancher
-  - docker
-  - podman
-  - ansible
-  - terraform
-  - postgresql
-  - grafana
-  - wazuh
-  - lms
+  - campus virtual
+  - openedx
   - moodle
-  - sakai
-  - ova
-  - scorm
-  - aprendizaje
-  - aula virtual
-  - llm
-  - sml
-  - modelos
-  - rag
-  - mlops
-  - nlp
-  - mvp
-  - poc
-  - interoperabilidad
-  - arquitectura
-  - conocimiento
-  - firma
+  - linux
+  - accesibilidad
+  - datos abiertos
+  - software libre
+  - inteligencia artificial
+  - machine learning
+  - virtualizacion
+  - lms
+  - transparencia
+  - soberania

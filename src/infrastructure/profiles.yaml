@@ -1,0 +1,191 @@
+profiles:
+  generic_it:
+    label: "Radar TI"
+    high_fit_threshold: 45
+    freshness_windows:
+      - {days: 7, score: 12}
+      - {days: 15, score: 9}
+      - {days: 30, score: 6}
+      - {days: 60, score: 3}
+    phase_bonuses:
+      "Presentación de oferta": 8
+      "Fase de ofertas": 6
+      "Manifestación de interés (Menor Cuantía)": 10
+      "Presentación de observaciones": 2
+    closing_date_unknown_penalty: 3
+    categories:
+      - label: "Software / desarrollo"
+        weight: 18
+        patterns:
+          - desarrollo de software
+          - fábrica de software
+          - api
+          - microservicios
+          - software
+      - label: "Datos / analítica"
+        weight: 16
+        patterns:
+          - gobernanza de datos
+          - ciencia de datos
+          - business intelligence
+          - tableros? de control
+          - data lake
+          - machine learning
+      - label: "Infraestructura / seguridad"
+        weight: 16
+        patterns:
+          - cloud
+          - nube
+          - linux
+          - kubernetes
+          - ciberseguridad
+          - seguridad informática
+    entity_bonuses:
+      - label: "Entidad académica o pública"
+        weight: 8
+        patterns:
+          - universidad
+          - sena
+          - instituto
+          - ministerio
+    risk_penalties:
+      - label: "Compra de bienes o materiales"
+        weight: 36
+        patterns:
+          - compraventa
+          - materiales de formación
+          - adquisición de materiales
+          - suministr[oa] de materiales
+          - plántulas
+      - label: "Obra o mantenimiento no TI"
+        weight: 28
+        patterns:
+          - grúa canasta
+          - obras eléctricas
+          - planta eléctrica
+          - cableado estructurado
+          - tableros eléctricos
+
+  opensai:
+    label: "OpenSAI"
+    high_fit_threshold: 60
+    freshness_windows:
+      - {days: 7, score: 14}
+      - {days: 15, score: 11}
+      - {days: 30, score: 8}
+      - {days: 60, score: 4}
+      - {days: 90, score: 2}
+    phase_bonuses:
+      "Presentación de oferta": 8
+      "Fase de ofertas": 6
+      "Manifestación de interés (Menor Cuantía)": 10
+      "Presentación de observaciones": 2
+    closing_date_unknown_penalty: 4
+    categories:
+      - label: "LMS / Educación Virtual (Core)"
+        weight: 40
+        patterns:
+          - moodle
+          - open.?edx
+          - campus virtual
+          - aula virtual
+          - e-learning
+          - elearning
+          - educación virtual
+          - diseño instruccional
+          - contenidos digitales educativos
+          - gestión del aprendizaje
+      - label: "Accesibilidad e Inclusión Digital"
+        weight: 38
+        patterns:
+          - accesibilidad
+          - wcag
+          - audiodescrip
+          - asistencia por voz
+          - lector de pantalla
+          - nvda
+          - inclusión digital
+      - label: "Soberanía Tecnológica / Linux / FLOSS"
+        weight: 35
+        patterns:
+          - linux
+          - red hat
+          - rhel
+          - kvm
+          - libvirt
+          - virtualización
+          - software libre
+          - open source
+          - soberanía tecnológica
+          - datos abiertos
+          - transparencia administrativa
+      - label: "Ciencia de Datos / IA Ética"
+        weight: 30
+        patterns:
+          - machine learning
+          - ciencia de datos
+          - r-studio
+          - rstudio
+          - anaconda
+          - jupyter
+          - inteligencia artificial
+          - big data
+          - modelos predictivos
+      - label: "Gestión Académica / CERI"
+        weight: 25
+        patterns:
+          - movilidad académica
+          - relaciones interinstitucionales
+          - gestión universitaria
+          - repositorio digital
+          - contenido científico
+    entity_bonuses:
+      - label: "Universidad / IES"
+        weight: 15
+        patterns:
+          - universidad
+          - institución educativa
+          - sena
+          - politécnico
+          - instituto tecnológico
+      - label: "Entidad de Innovación / Transparencia"
+        weight: 10
+        patterns:
+          - minciencias
+          - minctic
+          - veeduría
+          - personería
+          - defensoría
+    risk_penalties:
+      - label: "Compra de bienes / Suministros"
+        weight: 45
+        patterns:
+          - compraventa
+          - materiales de formación
+          - adquisición de materiales
+          - suministr[oa] de materiales
+          - equipos de cómputo
+          - impresoras
+      - label: "Vendor Lock-in (Privativo)"
+        weight: 25
+        patterns:
+          - oracle
+          - siemens
+          - arcgis
+          - radware
+          - automation anywhere
+          - microsoft.*licencia
+          - google cloud
+      - label: "Proceso Nominal / Hoja de Vida"
+        weight: 30
+        patterns:
+          - profesional en seguridad i
+          - servicios profesionales como
+          - de manera temporal.*autónoma
+      - label: "Obra y Logística"
+        weight: 35
+        patterns:
+          - grúa canasta
+          - obras eléctricas
+          - vigilancia privada
+          - mantenimiento locativo

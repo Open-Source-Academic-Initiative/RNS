@@ -20,3 +20,6 @@ dist/
 
 # Local scripts
 run-local.sh
+
+# Local runtime data
+data/
