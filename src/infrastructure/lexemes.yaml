@@ -99,16 +99,41 @@ negative_exclusions:
   - mantenimiento de aire
 
 socrata_like_seeds:
-  - campus virtual
-  - openedx
-  - moodle
-  - linux
-  - accesibilidad
+  # Civic tech / transparencia
   - datos abiertos
-  - software libre
+  - transparencia
+  # Educación virtual / LMS
+  - campus virtual
+  - aula virtual
+  - plataforma educativa
+  - moodle
+  - openedx
+  - open edx
+  - lms
+  # Accesibilidad
+  - accesibilidad
+  - wcag
+  # Linux e infraestructura abierta
+  - linux
+  - kvm
+  - libvirt
+  - virtualizacion
+  - soberania
+  # IA y datos
   - inteligencia artificial
   - machine learning
-  - virtualizacion
-  - lms
-  - transparencia
-  - soberania
+  - ciencia de datos
+  - gobernanza de datos
+  - big data
+  - jupyter
+  - python
+  - anaconda
+  # Gestión académica
+  - repositorio digital
+  # Core IT
+  - software
+  - bases de datos
+  - ciberseguridad
+  - seguridad informatica
+  - antivirus
+  - sistemas de informacion

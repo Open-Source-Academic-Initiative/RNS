@@ -283,8 +283,8 @@ class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(len(results), 1)
 
-    async def test_repository_scores_opensai_matches_above_generic_noise(self):
-        pages = [[
+    def _opensai_vs_generic_pages(self):
+        return [[
             self._raw_item(
                 "1",
                 "Administración de campus virtual Moodle",
@@ -300,21 +300,43 @@ class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
                 entity="MUNICIPIO DE RIONEGRO",
             ),
         ]]
-        transport, _ = _build_transport(pages)
+
+    async def test_repository_opensai_scope_excludes_generic_it_noise(self):
+        # Con scope=profile_only el universo OpenSAI excluye procesos IT que no
+        # encajan en sus categorías (p. ej. antivirus genérico).
+        transport, _ = _build_transport(self._opensai_vs_generic_pages())
         client = httpx.AsyncClient(transport=transport)
         repo = self._repo(client=client, page_size=5, max_pages=1)
 
         try:
-            results = await repo.search_by_criteria(min_budget=0, max_budget=500000000, limit=10)
+            results = await repo.search_by_criteria(
+                min_budget=0, max_budget=500000000, limit=10, profile="opensai"
+            )
         finally:
             await client.aclose()
             await repo.aclose()
 
-        self.assertEqual(results[0].id, "1")
+        self.assertEqual([tender.id for tender in results], ["1"])
         self.assertGreaterEqual(results[0].match_score, 70)
         self.assertEqual(results[0].match_label, "Alto encaje")
-        self.assertLess(results[1].match_score, results[0].match_score)
         self.assertEqual(results[0].supplier_action_code, "present_offer")
+
+    async def test_repository_generic_it_scope_keeps_full_it_universe(self):
+        # generic_it = "Radar TI" mantiene todo lo IT (scope=all_it), incluso
+        # procesos que no caen en ninguna categoría OpenSAI.
+        transport, _ = _build_transport(self._opensai_vs_generic_pages())
+        client = httpx.AsyncClient(transport=transport)
+        repo = self._repo(client=client, page_size=5, max_pages=1)
+
+        try:
+            results = await repo.search_by_criteria(
+                min_budget=0, max_budget=500000000, limit=10, profile="generic_it"
+            )
+        finally:
+            await client.aclose()
+            await repo.aclose()
+
+        self.assertEqual(sorted(tender.id for tender in results), ["1", "2"])
 
     async def test_repository_prioritizes_menor_cuantia_manifest_interest(self):
         pages = [[

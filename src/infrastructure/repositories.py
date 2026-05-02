@@ -1,12 +1,15 @@
 import asyncio
+import csv
 import hashlib
 import logging
 import os
 import sqlite3
 import time
+import urllib.parse
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, Iterator, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -92,15 +95,48 @@ SECOP_SELECT_FIELDS = (
     "descripci_n_del_procedimiento",
     "precio_base",
     "fecha_de_publicacion_del",
+    "fecha_de_ultima_publicaci",
     "fecha_de_recepcion_de",
+    "fecha_de_apertura_efectiva",
     "urlproceso",
     "departamento_entidad",
     "modalidad_de_contratacion",
     "fase",
     "estado_de_apertura_del_proceso",
     "estado_del_procedimiento",
+    "tipo_de_contrato",
+    "ordenentidad",
+    "duracion",
+    "unidad_de_duracion",
+    "codigo_principal_de_categoria",
+    "adjudicado",
+    "proveedores_invitados",
+    "proveedores_que_manifestaron",
+    "respuestas_al_procedimiento",
+    "proveedores_unicos_con",
 )
 SECOP_SELECT_CLAUSE = ", ".join(SECOP_SELECT_FIELDS)
+
+# UNSPSC prefixes that unambiguously classify a process as IT.
+# V1.43 = IT Hardware/Telecom; V1.8111 = Computer & IT Services.
+UNSPSC_IT_PREFIXES = ("V1.43", "V1.8111")
+
+# Contract types that can never be IT regardless of description text.
+NON_IT_CONTRACT_TYPES = frozenset({
+    "Comodato",
+    "Venta inmuebles",
+    "Empréstito",
+    "Seguros",
+    "Concesión",
+    "Negocio fiduciario",
+    "Arrendamiento de muebles",
+    "Arrendamiento de inmuebles",
+    "Venta muebles",
+    "Operaciones de Crédito Público",
+    "Servicios financieros",
+    "Asociación Público Privada",
+    "Obra",
+})
 
 ACTION_MANIFEST_INTEREST = "manifest_interest"
 ACTION_PRESENT_OFFER = "present_offer"
@@ -410,6 +446,7 @@ class SocrataTenderRepository(TenderRepository):
     ) -> List[Tender]:
         profile = MATCH_PROFILES[profile_name]
         threshold = float(profile.get("high_fit_threshold", 70))
+        scope = profile.get("scope", "all_it")
         deduped: dict[str, Tender] = {}
         now = self._now()
 
@@ -417,7 +454,14 @@ class SocrataTenderRepository(TenderRepository):
             tender = self._build_tender(raw_record)
             if tender is None:
                 continue
-            self._score_tender(tender, profile_name=profile_name, now=now)
+            category_matches = self._score_tender(tender, profile_name=profile_name, now=now)
+
+            # En modo profile_only el universo se restringe a procesos cuyo objeto
+            # encaja en al menos una categoría temática del perfil. all_it conserva
+            # el universo completo del IT_KEYWORD_PATTERN global.
+            if scope == "profile_only" and category_matches == 0:
+                continue
+
             self._observe_tender(tender, profile_name=profile_name, seen_at=now)
 
             if keyword and not self._matches_keyword(tender, keyword):
@@ -511,8 +555,7 @@ class SocrataTenderRepository(TenderRepository):
         limit: int,
         offset: int,
     ) -> List[dict]:
-        import urllib.parse
-
+        """Fetches a single page of results from Socrata."""
         where_clause = self._build_where_clause(
             min_budget=min_budget,
             max_budget=max_budget,
@@ -525,11 +568,11 @@ class SocrataTenderRepository(TenderRepository):
         # Socrata requires $ prefix for system parameters, but some servers fail if not encoded as %24
         # We build the query string manually to ensure correct encoding
         query_params = [
-            (f"%24select", SECOP_SELECT_CLAUSE),
-            (f"%24where", where_clause),
-            (f"%24limit", str(limit)),
-            (f"%24offset", str(offset)),
-            (f"%24order", DEFAULT_ORDER_BY),
+            ("%24select", SECOP_SELECT_CLAUSE),
+            ("%24where", where_clause),
+            ("%24limit", str(limit)),
+            ("%24offset", str(offset)),
+            ("%24order", DEFAULT_ORDER_BY),
         ]
 
         query_string = "&".join([f"{k}={urllib.parse.quote(v)}" for k, v in query_params])
@@ -537,7 +580,6 @@ class SocrataTenderRepository(TenderRepository):
 
         headers = {"User-Agent": USER_AGENT}
         client = self._ensure_client()
-        # Aumentamos el timeout para Socrata debido a la complejidad de las queries SoQL
         client.timeout = httpx.Timeout(60.0)
 
         for attempt in range(self.max_retries):
@@ -580,6 +622,10 @@ class SocrataTenderRepository(TenderRepository):
             f"precio_base <= {max_budget}",
             "estado_de_apertura_del_proceso = 'Abierto'",
             f"fecha_de_publicacion_del >= '{publication_cutoff}'",
+            # Exclude already-awarded processes.
+            "(adjudicado IS NULL OR adjudicado != 'Si')",
+            # Exclude contract types that are structurally non-IT.
+            self._build_contract_type_exclusion_clause(),
         ]
         if department != DEFAULT_DEPARTMENT:
             safe_department = department.replace("'", "''")
@@ -590,9 +636,27 @@ class SocrataTenderRepository(TenderRepository):
         if phase != DEFAULT_PHASE:
             safe_phase = phase.replace("'", "''")
             clauses.append(f"fase = '{safe_phase}'")
-        if self._seed_clause:
-            clauses.append(self._seed_clause)
+        # Pre-filter: text seeds OR UNSPSC IT codes (either signal is enough at SoQL level).
+        prefilter = self._build_prefilter_clause()
+        if prefilter:
+            clauses.append(prefilter)
         return " AND ".join(clauses)
+
+    def _build_contract_type_exclusion_clause(self) -> str:
+        escaped = [f"'{t.replace(chr(39), chr(39)*2)}'" for t in NON_IT_CONTRACT_TYPES]
+        return f"(tipo_de_contrato IS NULL OR tipo_de_contrato NOT IN ({', '.join(escaped)}))"
+
+    def _build_unspsc_clause(self) -> str:
+        fragments = [f"codigo_principal_de_categoria LIKE '{prefix}%'" for prefix in UNSPSC_IT_PREFIXES]
+        return "(" + " OR ".join(fragments) + ")"
+
+    def _build_prefilter_clause(self) -> str:
+        """Combines text seed pre-filter OR UNSPSC IT codes so either signal reaches Socrata."""
+        parts: list[str] = []
+        if self._seed_clause:
+            parts.append(self._seed_clause)
+        parts.append(self._build_unspsc_clause())
+        return "(" + " OR ".join(parts) + ")"
 
     def _now(self) -> datetime:
         return datetime.now(self._tz).replace(tzinfo=None, microsecond=0)
@@ -612,17 +676,29 @@ class SocrataTenderRepository(TenderRepository):
         procedure_name = raw_record.get("nombre_del_procedimiento", "") or ""
         procedure_description = raw_record.get("descripci_n_del_procedimiento", "") or ""
         analysis_text = f"{procedure_name} {procedure_description}"
+        unspsc_code = raw_record.get("codigo_principal_de_categoria") or ""
 
-        if not self._matches_it_keywords(analysis_text):
+        # Accept if text matches IT lexemes OR UNSPSC code is IT-classified.
+        if not self._matches_it_keywords(analysis_text) and not self._is_it_by_unspsc(unspsc_code):
             return None
         if GENERIC_NEGATIVE_PATTERN.search(analysis_text):
             return None
 
         try:
-            closing_date_raw = raw_record.get("fecha_de_recepcion_de")
+            # Closing date: prefer fecha_de_recepcion_de, fall back to fecha_de_apertura_efectiva.
+            closing_date_raw = raw_record.get("fecha_de_recepcion_de") or raw_record.get("fecha_de_apertura_efectiva")
             closing_date_known = bool(closing_date_raw)
+            if raw_record.get("fecha_de_recepcion_de"):
+                deadline_confidence = "confirmada"
+            elif closing_date_raw:
+                deadline_confidence = "estimada (apertura efectiva)"
+            else:
+                deadline_confidence = "sin fecha en dataset"
+
             publish_date = self._parse_date(raw_record.get("fecha_de_publicacion_del"), self._now())
+            last_updated_date = self._parse_date(raw_record.get("fecha_de_ultima_publicaci"), None)
             closing_date = self._parse_date(closing_date_raw, datetime.max.replace(microsecond=0))
+
             tender = Tender(
                 id=raw_record.get("id_del_proceso", DEFAULT_IDENTIFIER),
                 reference=raw_record.get("referencia_del_proceso", DEFAULT_IDENTIFIER),
@@ -631,6 +707,7 @@ class SocrataTenderRepository(TenderRepository):
                 description=procedure_description,
                 base_price=float(raw_record.get("precio_base", 0)),
                 publish_date=publish_date,
+                last_updated_date=last_updated_date,
                 closing_date=closing_date,
                 url=self._extract_url(raw_record.get("urlproceso", DEFAULT_URL)),
                 department=raw_record.get("departamento_entidad"),
@@ -639,8 +716,18 @@ class SocrataTenderRepository(TenderRepository):
                 opening_status=raw_record.get("estado_de_apertura_del_proceso") or UNKNOWN_STATUS,
                 phase=raw_record.get("fase"),
                 modality=raw_record.get("modalidad_de_contratacion"),
+                tipo_de_contrato=raw_record.get("tipo_de_contrato"),
+                ordenentidad=raw_record.get("ordenentidad"),
+                duracion=self._parse_float(raw_record.get("duracion")),
+                unidad_de_duracion=raw_record.get("unidad_de_duracion"),
+                unspsc_code=unspsc_code or None,
+                adjudicado=(raw_record.get("adjudicado") or "").strip().lower() == "si",
+                proveedores_invitados=self._parse_int(raw_record.get("proveedores_invitados")),
+                proveedores_que_manifestaron=self._parse_int(raw_record.get("proveedores_que_manifestaron")),
+                respuestas_al_procedimiento=self._parse_int(raw_record.get("respuestas_al_procedimiento")),
+                proveedores_unicos_con=self._parse_int(raw_record.get("proveedores_unicos_con")),
                 closing_date_known=closing_date_known,
-                deadline_confidence="confirmada" if closing_date_known else "sin fecha en dataset",
+                deadline_confidence=deadline_confidence,
             )
             tender.cluster_id = self._cluster_id_for(tender)
             return tender
@@ -649,6 +736,25 @@ class SocrataTenderRepository(TenderRepository):
 
     def _matches_it_keywords(self, analysis_text: str) -> bool:
         return IT_KEYWORD_PATTERN.search(analysis_text) is not None
+
+    def _is_it_by_unspsc(self, category_code: str) -> bool:
+        return bool(category_code) and any(category_code.startswith(p) for p in UNSPSC_IT_PREFIXES)
+
+    def _parse_int(self, value: Any) -> Optional[int]:
+        if value is None or value == "":
+            return None
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None
+
+    def _parse_float(self, value: Any) -> Optional[float]:
+        if value is None or value == "":
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
     def _matches_keyword(self, tender: Tender, keyword: str) -> bool:
         haystack = " ".join(
@@ -696,7 +802,7 @@ class SocrataTenderRepository(TenderRepository):
         normalized = "".join(ch.lower() if ch.isalnum() else " " for ch in value)
         return " ".join(normalized.split())
 
-    def _score_tender(self, tender: Tender, *, profile_name: str, now: datetime) -> None:
+    def _score_tender(self, tender: Tender, *, profile_name: str, now: datetime) -> int:
         profile = MATCH_PROFILES[profile_name]
         combined_text = " ".join(
             (
@@ -716,12 +822,14 @@ class SocrataTenderRepository(TenderRepository):
         reasons: list[str] = []
         risks: list[str] = []
         score = 0.0
+        category_matches = 0
 
         for rule in profile.get("categories", []) or []:
             pattern = rule.get("compiled_patterns")
             if pattern and pattern.search(combined_text):
                 score += float(rule.get("weight", 0))
                 reasons.append(rule.get("label", "Coincidencia temática"))
+                category_matches += 1
 
         for rule in profile.get("entity_bonuses", []) or []:
             pattern = rule.get("compiled_patterns")
@@ -729,47 +837,99 @@ class SocrataTenderRepository(TenderRepository):
                 score += float(rule.get("weight", 0))
                 reasons.append(rule.get("label", "Tipo de entidad afín"))
 
-        for phase_name, phase_bonus in (profile.get("phase_bonuses") or {}).items():
-            if (tender.phase or "").strip() == phase_name:
-                score += float(phase_bonus)
-                reasons.append(f"Etapa favorable: {phase_name}")
-                break
-
         action_bonus, action_reason = self._supplier_action_bonus(tender)
         if action_bonus:
             score += action_bonus
             reasons.append(action_reason)
 
-        days_since_publication = max(0, (now.date() - tender.publish_date.date()).days)
-        freshness_score = self._freshness_bonus(profile, days_since_publication)
+        # Phase bonuses.
+        phase_bonus, phase_reason = self._calculate_phase_bonus(tender, profile)
+        if phase_bonus:
+            score += phase_bonus
+            reasons.append(phase_reason)
+
+        # Freshness based on last official update (more relevant than creation date).
+        reference_date = tender.last_updated_date or tender.publish_date
+        days_since_update = max(0, (now.date() - reference_date.date()).days)
+        freshness_score = self._freshness_bonus(profile, days_since_update)
         if freshness_score:
             score += freshness_score
-            reasons.append(f"Publicado hace {days_since_publication} días")
+            reasons.append(f"Actividad reciente ({days_since_update} días)")
 
-        if not tender.closing_date_known:
-            score -= float(profile.get("closing_date_unknown_penalty", 0))
-            risks.append("SECOP no expone fecha de cierre; requiere validación manual")
-        elif tender.closing_date.date() < now.date():
-            score -= 60
-            risks.append("La fecha de cierre del dataset parece vencida")
+        # Competitive Density (Bonus for less crowded opportunities).
+        density_bonus, density_label = self._competitive_density_bonus(tender)
+        if density_bonus:
+            score += density_bonus
+            tender.competitive_density_score = density_bonus
+            reasons.append(density_label)
 
-        for rule in profile.get("risk_penalties", []) or []:
-            pattern = rule.get("compiled_patterns")
-            if pattern and pattern.search(combined_text):
-                score -= float(rule.get("weight", 0))
-                risks.append(rule.get("label", "Riesgo de encaje"))
-
-        if self._looks_like_nominal_person_record(tender):
-            score -= 18
-            risks.append("El objeto parece orientado a una hoja de vida individual")
+        # Penalties and risks.
+        score -= self._apply_risk_scoring(tender, profile, combined_text, risks, now)
 
         tender.profile = profile_name
-        tender.days_since_publication = days_since_publication
+        tender.days_since_publication = days_since_update
         tender.freshness_score = freshness_score
         tender.match_score = max(0.0, min(100.0, score))
         tender.match_reasons = self._unique_ordered(reasons)
         tender.risk_flags = self._unique_ordered(risks)
         tender.match_label = self._match_label_for(tender.match_score, profile)
+        return category_matches
+
+    def _calculate_phase_bonus(self, tender: Tender, profile: dict) -> tuple[float, str]:
+        """Calculates bonus based on the current procedural phase."""
+        phase_bonuses = profile.get("phase_bonuses") or {}
+        current_phase = (tender.phase or "").strip()
+        
+        bonus = float(phase_bonuses.get(current_phase, 0))
+        if bonus:
+            return bonus, f"Etapa favorable: {current_phase}"
+        return 0.0, ""
+
+    def _apply_risk_scoring(
+        self, tender: Tender, profile: dict, combined_text: str, risks: list[str], now: datetime
+    ) -> float:
+        """Calculates total penalty score and populates risk flags."""
+        penalty = 0.0
+        
+        if not tender.closing_date_known:
+            penalty += float(profile.get("closing_date_unknown_penalty", 0))
+            risks.append("SECOP no expone fecha de cierre; requiere validación manual")
+        elif tender.closing_date.date() < now.date():
+            penalty += 60.0
+            risks.append("La fecha de cierre del dataset parece vencida")
+
+        for rule in profile.get("risk_penalties", []) or []:
+            pattern = rule.get("compiled_patterns")
+            if pattern and pattern.search(combined_text):
+                penalty += float(rule.get("weight", 0))
+                risks.append(rule.get("label", "Riesgo de encaje"))
+
+        if self._looks_like_nominal_person_record(tender):
+            penalty += 18.0
+            risks.append("El objeto parece orientado a una hoja de vida individual")
+            
+        return penalty
+
+    def _competitive_density_bonus(self, tender: Tender) -> tuple[float, str]:
+        """Calculates a bonus based on number of manifests/responses."""
+        # Only relevant for certain phases or modalities.
+        manifests = tender.proveedores_que_manifestaron
+        responses = tender.respuestas_al_procedimiento
+        
+        # If no data is available, no bonus/penalty.
+        if manifests is None and responses is None:
+            return 0.0, ""
+            
+        count = (manifests or 0) + (responses or 0)
+        
+        if count <= 2:
+            return 12.0, "Oportunidad de baja competencia (0-2 interesados)"
+        if count <= 5:
+            return 6.0, "Competencia moderada (3-5 interesados)"
+        if count >= 20:
+            return -10.0, "Alta saturación de competidores (>20)"
+            
+        return 0.0, ""
 
     def _classify_supplier_action(self, tender: Tender, *, now: datetime) -> None:
         phase = (tender.phase or "").strip()

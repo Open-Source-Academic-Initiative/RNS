@@ -1,6 +1,7 @@
 profiles:
   generic_it:
     label: "Radar TI"
+    scope: "all_it"
     high_fit_threshold: 45
     freshness_windows:
       - {days: 7, score: 12}
@@ -48,6 +49,14 @@ profiles:
           - sena
           - instituto
           - ministerio
+      - label: "Nivel Nacional"
+        weight: 5
+        patterns:
+          - NACIONAL
+      - label: "Nivel Territorial"
+        weight: 3
+        patterns:
+          - TERRITORIAL
     risk_penalties:
       - label: "Compra de bienes o materiales"
         weight: 36
@@ -68,6 +77,7 @@ profiles:
 
   opensai:
     label: "OpenSAI"
+    scope: "profile_only"
     high_fit_threshold: 60
     freshness_windows:
       - {days: 7, score: 14}
@@ -156,6 +166,14 @@ profiles:
           - veeduría
           - personería
           - defensoría
+      - label: "Nivel Nacional"
+        weight: 5
+        patterns:
+          - NACIONAL
+      - label: "Nivel Territorial (Cercanía)"
+        weight: 7
+        patterns:
+          - TERRITORIAL
     risk_penalties:
       - label: "Compra de bienes / Suministros"
         weight: 45

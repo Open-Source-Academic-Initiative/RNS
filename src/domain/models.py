@@ -21,6 +21,21 @@ class Tender:
     opening_status: str = "Abierto"
     phase: Optional[str] = None
     modality: Optional[str] = None
+    # Contract metadata
+    tipo_de_contrato: Optional[str] = None
+    ordenentidad: Optional[str] = None
+    duracion: Optional[float] = None
+    unidad_de_duracion: Optional[str] = None
+    unspsc_code: Optional[str] = None
+    adjudicado: bool = False
+    last_updated_date: Optional[datetime] = None
+    # Competitive intelligence
+    proveedores_invitados: Optional[int] = None
+    proveedores_que_manifestaron: Optional[int] = None
+    respuestas_al_procedimiento: Optional[int] = None
+    proveedores_unicos_con: Optional[int] = None
+    competitive_density_score: float = 0.0
+    # Action and scoring
     supplier_action_code: str = "review"
     supplier_action_label: str = "Revisar manualmente"
     supplier_action_detail: str = "Validar etapa, cronograma y requisitos habilitantes en SECOP II antes de actuar."
