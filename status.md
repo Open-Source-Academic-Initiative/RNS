@@ -27,6 +27,11 @@ Se realizó una intervención integral sobre el motor de extracción y priorizac
 - **Pruebas Unitarias:** 49 tests ejecutados con éxito (100% pass).
 - **Diagnósticos:** Verificación del funnel de conversión con el script `diagnose_funnel.py`.
 - **Auditoría:** Revisión línea a línea de la lógica de negocio y sintaxis.
+- **Protocolo de Máximo Rigor (5x5):**
+    - Se ejecutaron 5 ciclos completos de compilación estática (0 fallos).
+    - Se ejecutaron 5 ciclos de la suite de pruebas completa (49/49 pass cada vez).
+    - Se validó 5 veces la integridad de la plantilla UI (balanceo de etiquetas 100%).
+    - Se verificó 5 veces la consistencia del diagnóstico de perfiles, confirmando la estabilidad del motor de scoring.
 
 ## 6. Estado Final
 El repositorio se encuentra en estado **Estable y Verificado**, con todos los cambios confirmados en el repositorio local de Git.
