@@ -1,7 +1,7 @@
 # Estado del Proyecto RNS - Auditoría y Mejoras de SECOP II
 
 **Fecha:** 2026-05-01
-**Responsable:** Gemini CLI (Interactive Agent)
+**Responsable:** RNS Maintainers
 
 ## 1. Resumen de Actividades
 Se realizó una intervención integral sobre el motor de extracción y priorización de oportunidades de SECOP II para mejorar la calidad de las señales entregadas al usuario.
@@ -34,4 +34,4 @@ Se realizó una intervención integral sobre el motor de extracción y priorizac
     - Se verificó 5 veces la consistencia del diagnóstico de perfiles, confirmando la estabilidad del motor de scoring.
 
 ## 6. Estado Final
-El repositorio se encuentra en estado **Estable y Verificado**, con todos los cambios confirmados en el repositorio local de Git.
+El repositorio se encuentra en estado **Estable para operación local**. La auditoría posterior endureció el filtro de accionabilidad para excluir procesos vencidos, sin fecha aplicable, en estado de selección/evaluación o marcados como adjudicados antes del scoring.

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 
+import _bootstrap  # noqa: F401
+
 from src.infrastructure.repositories import SocrataTenderRepository
 
 

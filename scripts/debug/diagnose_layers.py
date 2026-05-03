@@ -8,6 +8,8 @@ from datetime import timedelta
 
 import httpx
 
+import _bootstrap  # noqa: F401
+
 from src.infrastructure.repositories import (
     SODA_DATE_FORMAT,
     SocrataTenderRepository,

@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Optional
 
 from src.infrastructure.repositories import SocrataTenderRepository
@@ -6,12 +7,16 @@ from src.infrastructure.repositories import SocrataTenderRepository
 DEFAULT_BUDGET = 100000000
 DEFAULT_MIN_BUDGET = 0
 DEFAULT_LIMIT = 10000
+# Set RNS_ALLOW_SIMULATED=1 to opt into the canned demo payload when Socrata is
+# unreachable. Disabled by default so an empty Socrata response is never silently
+# replaced with a fixture row that could be confused with real procurement data.
+ALLOW_SIMULATED_FALLBACK = os.getenv("RNS_ALLOW_SIMULATED", "").strip() == "1"
 SIMULATED_RAW_DATA = [
     {
-        "entidad": "TEST MINISTRY",
+        "entidad": "TEST MINISTRY (SIMULATED)",
         "precio_base": "85000000",
-        "nombre_del_procedimiento": "Custom Software Development",
-        "descripci_n_del_procedimiento": "Management RESTful API",
+        "nombre_del_procedimiento": "Custom Software Development [SIMULATED]",
+        "descripci_n_del_procedimiento": "Management RESTful API [SIMULATED]",
         "urlproceso": "https://secop.gov.co/simulated",
         "modalidad_de_contratacion": "Menor cuantía",
         "fase": "Presentación de oferta",
@@ -99,8 +104,18 @@ async def _run() -> None:
         raw_records = await extractor.fetch_data()
 
         if not raw_records:
-            print("\n--- Simulation Mode (Connection Failure Detected) ---")
-            raw_records = SIMULATED_RAW_DATA
+            if ALLOW_SIMULATED_FALLBACK:
+                print(
+                    "\n--- SIMULATION MODE: Socrata returned no records. "
+                    "Output below is a hard-coded fixture, not real data. ---"
+                )
+                raw_records = SIMULATED_RAW_DATA
+            else:
+                print(
+                    "\nNo records returned by Socrata. Set RNS_ALLOW_SIMULATED=1 "
+                    "to fall back to the canned demo payload."
+                )
+                return
 
         _print_results(extractor.process_data(raw_records))
     finally:

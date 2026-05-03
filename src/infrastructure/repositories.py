@@ -1,15 +1,13 @@
 import asyncio
-import csv
 import hashlib
 import logging
 import os
 import sqlite3
 import time
 import urllib.parse
-from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable, Iterator, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -69,11 +67,13 @@ DEFAULT_MAX_PAGES = _env_int("RNS_MAX_PAGES", 100)
 DEFAULT_PAGE_BATCH_SIZE = _env_int("RNS_PAGE_BATCH_SIZE", 4)
 DEFAULT_TIMEOUT_SECONDS = 30.0
 DEFAULT_CACHE_TTL_SECONDS = float(_env_int("RNS_CACHE_TTL_SECONDS", 300))
+DEFAULT_CACHE_MAX_ENTRIES = _env_int("RNS_CACHE_MAX_ENTRIES", 256)
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_BACKOFF_BASE_SECONDS = 0.5
 DEFAULT_TIMEZONE = os.getenv("RNS_TIMEZONE", "America/Bogota")
 DEFAULT_PUBLISHED_SINCE_DAYS = _env_int("RNS_PUBLISHED_SINCE_DAYS", 60)
 DEFAULT_NEWNESS_HOURS = _env_int("RNS_NEWNESS_HOURS", 48)
+DEFAULT_SNAPSHOT_RETENTION_DAYS = _env_int("RNS_SNAPSHOT_RETENTION_DAYS", 365)
 DEFAULT_MAX_SEED_CLAUSE_LENGTH = 6000
 DEFAULT_URL = "#"
 DEFAULT_IDENTIFIER = "N/A"
@@ -138,6 +138,19 @@ NON_IT_CONTRACT_TYPES = frozenset({
     "Obra",
 })
 
+AWARDED_VALUES = frozenset({"1", "si", "sí", "true", "yes"})
+ACTIONABLE_PROCESS_STATUSES = frozenset({"Publicado", "Borrador"})
+NON_ACTIONABLE_STATUS_MARKERS = (
+    "adjudic",
+    "cancel",
+    "cerrad",
+    "desiert",
+    "evaluaci",
+    "seleccion",
+    "suspend",
+    "terminad",
+)
+
 ACTION_MANIFEST_INTEREST = "manifest_interest"
 ACTION_PRESENT_OFFER = "present_offer"
 ACTION_OBSERVE = "observe"
@@ -174,10 +187,16 @@ FOLLOW_UP_PHASES = {
 
 
 class _TTLCache:
-    """Tiny in-process TTL cache using time.monotonic for expiry."""
+    """Tiny in-process TTL cache using time.monotonic for expiry.
 
-    def __init__(self, ttl_seconds: float):
+    Bounded by ``max_entries`` to prevent unbounded growth from operators
+    cycling through filter combinations; on overflow the oldest entry by
+    expiry is evicted (FIFO since all entries share the same TTL).
+    """
+
+    def __init__(self, ttl_seconds: float, max_entries: int = DEFAULT_CACHE_MAX_ENTRIES):
         self._ttl = ttl_seconds
+        self._max_entries = max(1, max_entries)
         self._entries: dict[Any, Tuple[float, Any]] = {}
 
     def get(self, key: Any) -> Optional[Any]:
@@ -191,7 +210,19 @@ class _TTLCache:
         return value
 
     def set(self, key: Any, value: Any) -> None:
+        if key not in self._entries and len(self._entries) >= self._max_entries:
+            self._evict_one()
         self._entries[key] = (time.monotonic() + self._ttl, value)
+
+    def _evict_one(self) -> None:
+        now = time.monotonic()
+        expired = [k for k, (exp, _) in self._entries.items() if exp <= now]
+        if expired:
+            for k in expired:
+                self._entries.pop(k, None)
+            return
+        oldest_key = min(self._entries, key=lambda k: self._entries[k][0])
+        self._entries.pop(oldest_key, None)
 
     def clear(self) -> None:
         self._entries.clear()
@@ -200,12 +231,31 @@ class _TTLCache:
 class _SnapshotStore:
     """Small SQLite store to track first-seen and last-seen opportunities."""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, retention_days: int = DEFAULT_SNAPSHOT_RETENTION_DAYS):
         self._db_path = db_path
+        self._retention_days = max(0, retention_days)
         if db_path != ":memory:":
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._ensure_schema()
+        if self._retention_days:
+            self.purge_older_than(self._retention_days)
+
+    def purge_older_than(self, days: int) -> int:
+        """Removes rows whose ``last_seen_at`` is older than ``days``.
+
+        Returns the number of rows deleted. Used to keep the local snapshot
+        database from growing unbounded over months of operation.
+        """
+        if days <= 0:
+            return 0
+        cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+        cursor = self._conn.execute(
+            "DELETE FROM tender_snapshots WHERE last_seen_at < ?",
+            (cutoff,),
+        )
+        self._conn.commit()
+        return cursor.rowcount or 0
 
     def _ensure_schema(self) -> None:
         self._conn.execute(
@@ -300,10 +350,12 @@ class SocrataTenderRepository(TenderRepository):
         max_pages: int = DEFAULT_MAX_PAGES,
         page_batch_size: int = DEFAULT_PAGE_BATCH_SIZE,
         cache_ttl: float = DEFAULT_CACHE_TTL_SECONDS,
+        cache_max_entries: int = DEFAULT_CACHE_MAX_ENTRIES,
         max_retries: int = DEFAULT_MAX_RETRIES,
         backoff_base: float = DEFAULT_BACKOFF_BASE_SECONDS,
         timezone_name: str = DEFAULT_TIMEZONE,
         snapshot_db_path: str = DEFAULT_SNAPSHOT_DB_PATH,
+        snapshot_retention_days: int = DEFAULT_SNAPSHOT_RETENTION_DAYS,
     ):
         self._injected_client = client
         self._client: Optional[httpx.AsyncClient] = client
@@ -313,9 +365,11 @@ class SocrataTenderRepository(TenderRepository):
         self.max_retries = max(1, max_retries)
         self.backoff_base = backoff_base
         self._tz = ZoneInfo(timezone_name)
-        self._cache = _TTLCache(cache_ttl)
+        self._cache = _TTLCache(cache_ttl, max_entries=cache_max_entries)
         self._seed_clause = self._build_seed_clause()
-        self._snapshot_store = _SnapshotStore(snapshot_db_path)
+        self._snapshot_store = _SnapshotStore(
+            snapshot_db_path, retention_days=snapshot_retention_days
+        )
         if len(self._seed_clause) > DEFAULT_MAX_SEED_CLAUSE_LENGTH:
             logger.warning(
                 "Socrata seed clause length (%d chars) exceeds %d; disabling remote seed prefilter.",
@@ -622,8 +676,8 @@ class SocrataTenderRepository(TenderRepository):
             f"precio_base <= {max_budget}",
             "estado_de_apertura_del_proceso = 'Abierto'",
             f"fecha_de_publicacion_del >= '{publication_cutoff}'",
-            # Exclude already-awarded processes.
-            "(adjudicado IS NULL OR adjudicado != 'Si')",
+            self._build_award_exclusion_clause(),
+            self._build_actionable_deadline_clause(),
             # Exclude contract types that are structurally non-IT.
             self._build_contract_type_exclusion_clause(),
         ]
@@ -633,6 +687,8 @@ class SocrataTenderRepository(TenderRepository):
         if process_status != DEFAULT_PROCESS_STATUS:
             safe_process_status = process_status.replace("'", "''")
             clauses.append(f"estado_del_procedimiento = '{safe_process_status}'")
+        else:
+            clauses.append(self._build_process_status_guard_clause())
         if phase != DEFAULT_PHASE:
             safe_phase = phase.replace("'", "''")
             clauses.append(f"fase = '{safe_phase}'")
@@ -641,6 +697,28 @@ class SocrataTenderRepository(TenderRepository):
         if prefilter:
             clauses.append(prefilter)
         return " AND ".join(clauses)
+
+    def _build_award_exclusion_clause(self) -> str:
+        awarded_values = ", ".join(f"'{value.upper()}'" for value in sorted(AWARDED_VALUES))
+        return f"(adjudicado IS NULL OR UPPER(adjudicado) NOT IN ({awarded_values}))"
+
+    def _build_actionable_deadline_clause(self) -> str:
+        today = self._now().strftime(SODA_DATE_FORMAT)
+        return (
+            "("
+            f"(fecha_de_recepcion_de IS NOT NULL AND fecha_de_recepcion_de >= '{today}')"
+            " OR "
+            "("
+            "fecha_de_recepcion_de IS NULL "
+            "AND fecha_de_apertura_efectiva IS NOT NULL "
+            f"AND fecha_de_apertura_efectiva >= '{today}'"
+            ")"
+            ")"
+        )
+
+    def _build_process_status_guard_clause(self) -> str:
+        statuses = ", ".join(f"'{status}'" for status in sorted(ACTIONABLE_PROCESS_STATUSES))
+        return f"(estado_del_procedimiento IS NULL OR estado_del_procedimiento IN ({statuses}))"
 
     def _build_contract_type_exclusion_clause(self) -> str:
         escaped = [f"'{t.replace(chr(39), chr(39)*2)}'" for t in NON_IT_CONTRACT_TYPES]
@@ -677,6 +755,17 @@ class SocrataTenderRepository(TenderRepository):
         procedure_description = raw_record.get("descripci_n_del_procedimiento", "") or ""
         analysis_text = f"{procedure_name} {procedure_description}"
         unspsc_code = raw_record.get("codigo_principal_de_categoria") or ""
+        process_status = raw_record.get("estado_del_procedimiento") or raw_record.get(
+            "estado_de_apertura_del_proceso", UNKNOWN_STATUS
+        )
+        opening_status = raw_record.get("estado_de_apertura_del_proceso") or UNKNOWN_STATUS
+
+        if self._is_awarded_value(raw_record.get("adjudicado")):
+            return None
+        if not self._is_process_status_actionable(process_status):
+            return None
+        if opening_status.strip().casefold() != "abierto":
+            return None
 
         # Accept if text matches IT lexemes OR UNSPSC code is IT-classified.
         if not self._matches_it_keywords(analysis_text) and not self._is_it_by_unspsc(unspsc_code):
@@ -695,9 +784,12 @@ class SocrataTenderRepository(TenderRepository):
             else:
                 deadline_confidence = "sin fecha en dataset"
 
-            publish_date = self._parse_date(raw_record.get("fecha_de_publicacion_del"), self._now())
+            now = self._now()
+            publish_date = self._parse_date(raw_record.get("fecha_de_publicacion_del"), now)
             last_updated_date = self._parse_date(raw_record.get("fecha_de_ultima_publicaci"), None)
             closing_date = self._parse_date(closing_date_raw, datetime.max.replace(microsecond=0))
+            if not self._is_deadline_actionable(closing_date, closing_date_known, now):
+                return None
 
             tender = Tender(
                 id=raw_record.get("id_del_proceso", DEFAULT_IDENTIFIER),
@@ -711,9 +803,8 @@ class SocrataTenderRepository(TenderRepository):
                 closing_date=closing_date,
                 url=self._extract_url(raw_record.get("urlproceso", DEFAULT_URL)),
                 department=raw_record.get("departamento_entidad"),
-                status=raw_record.get("estado_del_procedimiento")
-                or raw_record.get("estado_de_apertura_del_proceso", UNKNOWN_STATUS),
-                opening_status=raw_record.get("estado_de_apertura_del_proceso") or UNKNOWN_STATUS,
+                status=process_status,
+                opening_status=opening_status,
                 phase=raw_record.get("fase"),
                 modality=raw_record.get("modalidad_de_contratacion"),
                 tipo_de_contrato=raw_record.get("tipo_de_contrato"),
@@ -721,7 +812,7 @@ class SocrataTenderRepository(TenderRepository):
                 duracion=self._parse_float(raw_record.get("duracion")),
                 unidad_de_duracion=raw_record.get("unidad_de_duracion"),
                 unspsc_code=unspsc_code or None,
-                adjudicado=(raw_record.get("adjudicado") or "").strip().lower() == "si",
+                adjudicado=False,
                 proveedores_invitados=self._parse_int(raw_record.get("proveedores_invitados")),
                 proveedores_que_manifestaron=self._parse_int(raw_record.get("proveedores_que_manifestaron")),
                 respuestas_al_procedimiento=self._parse_int(raw_record.get("respuestas_al_procedimiento")),
@@ -739,6 +830,25 @@ class SocrataTenderRepository(TenderRepository):
 
     def _is_it_by_unspsc(self, category_code: str) -> bool:
         return bool(category_code) and any(category_code.startswith(p) for p in UNSPSC_IT_PREFIXES)
+
+    def _is_awarded_value(self, value: Any) -> bool:
+        if value is None:
+            return False
+        return str(value).strip().casefold() in AWARDED_VALUES
+
+    def _is_process_status_actionable(self, status: Optional[str]) -> bool:
+        if not status:
+            return True
+        normalized = status.strip()
+        if not normalized or normalized in ACTIONABLE_PROCESS_STATUSES:
+            return True
+        folded = normalized.casefold()
+        return not any(marker in folded for marker in NON_ACTIONABLE_STATUS_MARKERS)
+
+    def _is_deadline_actionable(self, closing_date: datetime, closing_date_known: bool, now: datetime) -> bool:
+        if not closing_date_known:
+            return False
+        return closing_date.date() >= now.date()
 
     def _parse_int(self, value: Any) -> Optional[int]:
         if value is None or value == "":
@@ -935,6 +1045,20 @@ class SocrataTenderRepository(TenderRepository):
         phase = (tender.phase or "").strip()
         is_menor_cuantia = self._is_menor_cuantia(tender)
         opening_status = (tender.opening_status or "").strip().casefold()
+
+        if tender.adjudicado:
+            tender.supplier_action_code = ACTION_NOT_OPEN
+            tender.supplier_action_label = "No accionable: adjudicado"
+            tender.supplier_action_detail = "SECOP marca el proceso como adjudicado; no invertir esfuerzo comercial."
+            tender.supplier_action_rank = 95
+            return
+
+        if not self._is_process_status_actionable(tender.status):
+            tender.supplier_action_code = ACTION_NOT_OPEN
+            tender.supplier_action_label = "No accionable: estado avanzado"
+            tender.supplier_action_detail = "El estado procedimental ya no corresponde a una etapa de participación."
+            tender.supplier_action_rank = 85
+            return
 
         if tender.closing_date_known and tender.closing_date.date() < now.date():
             tender.supplier_action_code = ACTION_EXPIRED

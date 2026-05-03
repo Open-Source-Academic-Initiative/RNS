@@ -1,3 +1,5 @@
+import _bootstrap  # noqa: F401
+
 from fastapi.testclient import TestClient
 from src.presentation.web import app
 

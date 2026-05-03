@@ -1,4 +1,7 @@
 import asyncio
+
+import _bootstrap  # noqa: F401
+
 from src.presentation.web import app, lifespan
 
 async def main():

@@ -1,3 +1,5 @@
+import _bootstrap  # noqa: F401
+
 from starlette.requests import Request
 from src.presentation.web import templates, DEFAULT_BUDGET, DEFAULT_MIN_BUDGET, DEFAULT_DEPARTMENT, DEFAULT_PROCESS_STATUS, DEFAULT_PHASE, DEFAULT_PROFILE, DEFAULT_PUBLISHED_SINCE_DAYS
 

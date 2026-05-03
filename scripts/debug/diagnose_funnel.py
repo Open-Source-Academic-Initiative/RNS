@@ -2,10 +2,10 @@
 
 Mide dónde se reduce el universo:
   A) Total Socrata con presupuesto + ventana + Abierto
-  B) + cláusula seed (LIKE OR-chain)
+  B) + guardas completas del repositorio (accionabilidad + seed)
   C) + IT_KEYWORD_PATTERN local
   D) - GENERIC_NEGATIVE_PATTERN local
-  E) Después de dedupe por cluster_id (lo que llega a la UI)
+  E) Después de perfil OpenSAI + dedupe + ranking (lo que llega a la UI)
 """
 
 from __future__ import annotations
@@ -17,10 +17,11 @@ from typing import List
 
 import httpx
 
+import _bootstrap  # noqa: F401
+
 from src.infrastructure.constants import (
     GENERIC_NEGATIVE_PATTERN,
     IT_KEYWORD_PATTERN,
-    SOCRATA_LIKE_SEEDS,
 )
 from src.infrastructure.repositories import (
     SECOP_SELECT_CLAUSE,
@@ -30,15 +31,6 @@ from src.infrastructure.repositories import (
 
 
 BASE_URL = SocrataTenderRepository.BASE_URL
-
-
-def build_seed_clause() -> str:
-    fragments = []
-    for seed in SOCRATA_LIKE_SEEDS:
-        safe = seed.replace("'", "''").upper()
-        fragments.append(f"UPPER(nombre_del_procedimiento) LIKE '%{safe}%'")
-        fragments.append(f"UPPER(descripci_n_del_procedimiento) LIKE '%{safe}%'")
-    return "(" + " OR ".join(fragments) + ")"
 
 
 async def fetch_count(client: httpx.AsyncClient, where: str) -> int:
@@ -74,19 +66,25 @@ async def main() -> None:
         f"AND estado_de_apertura_del_proceso = 'Abierto' "
         f"AND fecha_de_publicacion_del >= '{cutoff}'"
     )
-    seed_clause = build_seed_clause()
-    seeded_where = f"{base_where} AND {seed_clause}"
+    repository_where = repo._build_where_clause(
+        min_budget=60_000_000,
+        max_budget=260_000_000,
+        department="Todos",
+        process_status="Todos",
+        phase="Todos",
+        published_since_days=30,
+    )
 
     timeout = httpx.Timeout(120.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
         a_total = await fetch_count(client, base_where)
-        b_total = await fetch_count(client, seeded_where)
-        records = await fetch_records(client, seeded_where, limit=b_total + 50)
+        b_total = await fetch_count(client, repository_where)
+        records = await fetch_records(client, repository_where, limit=b_total + 50)
 
     print(f"Cutoff: {cutoff}, presupuesto 60M..260M, opening='Abierto'")
     print()
     print(f"A) base (precio + ventana + Abierto):     {a_total}")
-    print(f"B) + seed LIKE OR-chain Socrata:          {b_total}")
+    print(f"B) + guardas completas del repositorio:   {b_total}")
     print(f"   registros descargados realmente:       {len(records)}")
 
     after_kw = []
@@ -107,20 +105,13 @@ async def main() -> None:
     print(f"C) + IT_KEYWORD_PATTERN local:            {len(after_kw)}")
     print(f"D) - exclusiones negativas locales:       {len(after_neg)}")
 
-    # Dedup by cluster_id signature
-    seen = {}
-    for r in after_neg:
-        entity = (r.get("entidad") or "").lower()
-        name = (r.get("nombre_del_procedimiento") or "").lower()[:180]
-        price = str(int(float(r.get("precio_base") or 0)))
-        key = f"{entity}|{name}|{price}"
-        seen.setdefault(key, r)
-    print(f"E) tras dedupe por cluster_id:            {len(seen)}")
+    results = repo.map_raw_records(after_neg, profile="opensai")
+    print(f"E) tras perfil OpenSAI + dedupe:          {len(results)}")
 
     print()
     print("Ejemplos finales (lo que llega a la UI):")
-    for r in list(seen.values())[:10]:
-        print(f"  + {r.get('precio_base'):>14} | {r.get('entidad')[:40]:40} | {(r.get('nombre_del_procedimiento') or '')[:90]}")
+    for tender in results[:10]:
+        print(f"  + {int(tender.base_price):>14} | {tender.entity[:40]:40} | {tender.name[:90]}")
 
     print()
     print("Ejemplos descartados por keyword (entran al seed pero no al regex local):")
@@ -130,8 +121,8 @@ async def main() -> None:
     print()
     print("Top 10 entidades en E:")
     counts: dict[str, int] = {}
-    for r in seen.values():
-        counts[r.get("entidad") or "?"] = counts.get(r.get("entidad") or "?", 0) + 1
+    for tender in results:
+        counts[tender.entity or "?"] = counts.get(tender.entity or "?", 0) + 1
     for ent, n in sorted(counts.items(), key=lambda kv: -kv[1])[:10]:
         print(f"  {n:>3}  {ent}")
 

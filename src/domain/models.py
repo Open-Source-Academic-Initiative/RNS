@@ -1,6 +1,17 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Protocol
+from zoneinfo import ZoneInfo
+
+# SECOP II publishes Colombian local-time dates as naive strings; the repository
+# converts "now" to Bogotá wall clock and strips tz before comparing. The domain
+# entity mirrors that convention so `is_active` does not drift on a server with
+# a different system timezone.
+_RNS_TIMEZONE = ZoneInfo("America/Bogota")
+
+
+def _rns_now_naive() -> datetime:
+    return datetime.now(_RNS_TIMEZONE).replace(tzinfo=None, microsecond=0)
 
 
 @dataclass
@@ -57,11 +68,13 @@ class Tender:
     @property
     def is_active(self) -> bool:
         """Checks if the tender is still open for submission."""
+        if self.adjudicado:
+            return False
         if self.opening_status and self.opening_status.strip().casefold() != "abierto":
             return False
         if not self.closing_date_known:
             return True
-        return self.closing_date >= datetime.now()
+        return self.closing_date >= _rns_now_naive()
 
 
 class TenderRepository(Protocol):

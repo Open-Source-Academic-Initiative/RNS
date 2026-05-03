@@ -106,6 +106,20 @@ class TestHexagonalArchitecture(unittest.IsolatedAsyncioTestCase):
         )
         self.assertFalse(expired_tender.is_active)
 
+        awarded_tender = Tender(
+            id="3",
+            reference="REF-03",
+            entity="Test",
+            name="T",
+            description="D",
+            base_price=100,
+            publish_date=datetime.now(),
+            closing_date=datetime.now() + timedelta(days=1),
+            url="http",
+            adjudicado=True,
+        )
+        self.assertFalse(awarded_tender.is_active)
+
     async def test_use_case_threads_new_filters_to_repository(self):
         repo = MockTenderRepository()
         service = SearchActiveTenders(repo)
@@ -176,6 +190,7 @@ class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
         process_status: str = "Publicado",
         phase: str = "Presentación de oferta",
         modality: str = "Licitación pública",
+        adjudicado: str = "No",
     ) -> dict:
         return {
             "id_del_proceso": process_id,
@@ -192,6 +207,7 @@ class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
             "fase": phase,
             "modalidad_de_contratacion": modality,
             "departamento_entidad": "Distrito Capital de Bogotá",
+            "adjudicado": adjudicado,
         }
 
     async def test_repository_filters_by_publication_window_and_budget_range(self):
@@ -228,10 +244,13 @@ class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
         self.assertIn("precio_base >= 60000000", where_clause)
         self.assertIn("precio_base <= 260000000", where_clause)
         self.assertIn("fecha_de_publicacion_del >= '2026-03-02T00:00:00.000'", where_clause)
-        self.assertNotIn("fecha_de_recepcion_de >=", where_clause)
+        self.assertIn("UPPER(adjudicado) NOT IN", where_clause)
+        self.assertIn("estado_del_procedimiento IN ('Borrador', 'Publicado')", where_clause)
+        self.assertIn("fecha_de_recepcion_de >= '2026-05-01T00:00:00.000'", where_clause)
+        self.assertIn("fecha_de_apertura_efectiva >= '2026-05-01T00:00:00.000'", where_clause)
         self.assertIn("modalidad_de_contratacion", select_clause)
 
-    async def test_repository_keeps_records_without_closing_date(self):
+    async def test_repository_excludes_records_without_actionable_deadline(self):
         pages = [[
             self._raw_item(
                 "1",
@@ -250,9 +269,88 @@ class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
             await client.aclose()
             await repo.aclose()
 
-        self.assertEqual(len(results), 1)
-        self.assertFalse(results[0].closing_date_known)
-        self.assertIn("SECOP no expone fecha de cierre", " ".join(results[0].risk_flags))
+        self.assertEqual(results, [])
+
+    async def test_repository_excludes_expired_records_even_if_secop_marks_open(self):
+        pages = [[
+            self._raw_item(
+                "1",
+                "Administración de campus virtual Moodle",
+                "Soporte y actualización del LMS institucional",
+                closing_date="2026-04-15T00:00:00.000",
+            ),
+        ]]
+        transport, _ = _build_transport(pages)
+        client = httpx.AsyncClient(transport=transport)
+        repo = self._repo(client=client, page_size=5, max_pages=1)
+
+        class FixedClockRepository(type(repo)):
+            def _now(self_inner) -> datetime:
+                return datetime(2026, 5, 1, 12, 0, 0)
+
+        repo.__class__ = FixedClockRepository
+
+        try:
+            results = await repo.search_by_criteria(min_budget=0, max_budget=500000000, limit=5)
+        finally:
+            await client.aclose()
+            await repo.aclose()
+
+        self.assertEqual(results, [])
+
+    async def test_repository_excludes_non_actionable_process_statuses(self):
+        pages = [[
+            self._raw_item(
+                "1",
+                "Administración de campus virtual Moodle",
+                "Soporte y actualización del LMS institucional",
+                process_status="Seleccionado",
+            ),
+            self._raw_item(
+                "2",
+                "Aula virtual Moodle institucional",
+                "Soporte y actualización del LMS institucional",
+                process_status="Evaluación",
+            ),
+        ]]
+        transport, _ = _build_transport(pages)
+        client = httpx.AsyncClient(transport=transport)
+        repo = self._repo(client=client, page_size=5, max_pages=1)
+
+        try:
+            results = await repo.search_by_criteria(min_budget=0, max_budget=500000000, limit=5)
+        finally:
+            await client.aclose()
+            await repo.aclose()
+
+        self.assertEqual(results, [])
+
+    async def test_repository_excludes_awarded_variants(self):
+        pages = [[
+            self._raw_item(
+                "1",
+                "Administración de campus virtual Moodle",
+                "Soporte y actualización del LMS institucional",
+                adjudicado="Sí",
+            ),
+            self._raw_item(
+                "2",
+                "Aula virtual Moodle institucional",
+                "Soporte y actualización del LMS institucional",
+                adjudicado="true",
+            ),
+        ]]
+        transport, _ = _build_transport(pages)
+        client = httpx.AsyncClient(transport=transport)
+        repo = self._repo(client=client, page_size=5, max_pages=1)
+
+        try:
+            results = await repo.search_by_criteria(min_budget=0, max_budget=500000000, limit=5)
+        finally:
+            await client.aclose()
+            await repo.aclose()
+
+        self.assertEqual(results, [])
 
     async def test_repository_dedupes_similar_notices(self):
         pages = [[
@@ -593,14 +691,22 @@ class TestInfrastructureAdapter(unittest.IsolatedAsyncioTestCase):
     async def test_live_socrata_repository_mapping(self):
         repo = SocrataTenderRepository(snapshot_db_path=":memory:")
         try:
-            results = await repo.search_by_criteria(min_budget=0, max_budget=500000000, limit=5)
+            results = await repo.search_by_criteria(
+                min_budget=0,
+                max_budget=500000000,
+                limit=5,
+                profile="generic_it",
+            )
         finally:
             await repo.aclose()
 
-        self.assertGreater(len(results), 0)
+        if not results:
+            self.skipTest("Socrata returned no currently actionable IT opportunities.")
         item = results[0]
         self.assertIsInstance(item, Tender)
         self.assertIsInstance(item.closing_date, datetime)
+        self.assertTrue(item.closing_date_known)
+        self.assertFalse(item.adjudicado)
         self.assertGreaterEqual(item.base_price, 0)
 
 

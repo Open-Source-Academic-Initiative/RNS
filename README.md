@@ -7,7 +7,8 @@
 RNS V3.0 is a local-first radar for OpenSAI procurement monitoring. The current source of truth is:
 
 - OpenSAI profile high-fit threshold: `60`.
-- Web search default: show all matching IT opportunities, with `only_high_fit=false`.
+- Web search default: show all matching actionable IT opportunities, with `only_high_fit=false`.
+- Actionability guard: default searches exclude expired deadlines, missing deadlines, selected/evaluation/awarded statuses and awarded markers before scoring.
 - Operational priority: menor cuantía opportunities are surfaced first when SECOP exposes either `modalidad_de_contratacion` as menor cuantía or the phase as `Manifestación de interés (Menor Cuantía)`.
 - Local runtime snapshots are stored under `data/` and should not be committed.
 - Before closing a change, run `python -m unittest discover tests -v` and `git diff --check`.
@@ -15,7 +16,7 @@ RNS V3.0 is a local-first radar for OpenSAI procurement monitoring. The current 
 ## Features
 
 - **Hexagonal architecture**: strict separation between Domain, Application, Infrastructure and Presentation layers.
-- **Async SECOP II adapter**: `httpx.AsyncClient` with concurrent page fetching, TTL cache and retries with exponential backoff.
+- **Async SECOP II adapter**: `httpx.AsyncClient` with concurrent page fetching, TTL cache, actionability guards and retries with exponential backoff.
 - **Semantic filtering**: IT lexeme matrix externalized in `src/infrastructure/lexemes.yaml` and scoring profiles in `src/infrastructure/profiles.yaml`.
 - **Supplier action classification**: each match includes the recommended next action for the proponent, including manifesting interest for menor cuantía, presenting a formal offer, observing draft documents, handling prequalification or manual follow-up.
 - **Socrata pre-filter**: ships a broad `UPPER(...) LIKE` seed list in `$where` to reduce payload size; the regex post-filter remains authoritative for precision.
