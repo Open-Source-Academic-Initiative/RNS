@@ -3,248 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SECOP II - Radar TI</title>
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            color: #0f172a;
-            line-height: 1.5;
-        }
-        a { color: inherit; }
-        table { border-collapse: collapse; }
-        button, input, select { font: inherit; }
-        .container { width: min(1180px, calc(100% - 2rem)); }
-        .mx-auto { margin-left: auto; margin-right: auto; }
-        .mt-auto { margin-top: auto; }
-        .mt-1 { margin-top: .25rem; }
-        .mt-4 { margin-top: 1rem; }
-        .mb-1 { margin-bottom: .25rem; }
-        .mb-4 { margin-bottom: 1rem; }
-        .mb-8 { margin-bottom: 2rem; }
-        .block { display: block; }
-        .flex { display: flex; }
-        .hidden { display: none !important; }
-        .inline-block { display: inline-block; }
-        .flex-col { flex-direction: column; }
-        .flex-wrap { flex-wrap: wrap; }
-        .flex-1 { flex: 1 1 0%; }
-        .items-center { align-items: center; }
-        .items-end { align-items: flex-end; }
-        .items-start { align-items: flex-start; }
-        .justify-between { justify-content: space-between; }
-        .justify-center { justify-content: center; }
-        .gap-2 { gap: .5rem; }
-        .gap-3 { gap: .75rem; }
-        .gap-4 { gap: 1rem; }
-        .relative { position: relative; }
-        .absolute { position: absolute; }
-        .fixed { position: fixed; }
-        .inset-0 { inset: 0; }
-        .left-3 { left: .75rem; }
-        .top-2 { top: .5rem; }
-        .z-50 { z-index: 50; }
-        .w-full { width: 100%; }
-        .max-w-md { max-width: 28rem; }
-        .max-w-2xl { max-width: 42rem; }
-        .max-h-\[80vh\] { max-height: 80vh; }
-        .min-h-screen { min-height: 100vh; }
-        .min-w-\[180px\] { min-width: 180px; }
-        .min-w-\[200px\] { min-width: 200px; }
-        .overflow-hidden { overflow: hidden; }
-        .overflow-x-auto { overflow-x: auto; }
-        .overflow-y-auto { overflow-y: auto; }
-        .whitespace-nowrap { white-space: nowrap; }
-        .rounded { border-radius: .25rem; }
-        .rounded-lg { border-radius: .5rem; }
-        .rounded-xl, .rounded-2xl { border-radius: .5rem; }
-        .rounded-full { border-radius: 999px; }
-        .border { border: 1px solid #cbd5e1; }
-        .border-b { border-bottom: 1px solid #e2e8f0; }
-        .border-t { border-top: 1px solid #e2e8f0; }
-        .border-l-4 { border-left: 4px solid #fb7185; }
-        .border-slate-100 { border-color: #f1f5f9; }
-        .border-slate-200 { border-color: #e2e8f0; }
-        .border-slate-300 { border-color: #cbd5e1; }
-        .border-rose-400 { border-color: #fb7185; }
-        .bg-white { background: #fff; }
-        .bg-slate-50 { background: #f8fafc; }
-        .bg-slate-100 { background: #f1f5f9; }
-        .bg-slate-800 { background: #1f2937; }
-        .bg-slate-900\/50 { background: rgba(15, 23, 42, .55); }
-        .bg-blue-600 { background: #2563eb; }
-        .bg-blue-900 { background: #1e3a8a; }
-        .bg-green-100 { background: #dcfce7; }
-        .bg-rose-50 { background: #fff1f2; }
-        .hover\:bg-blue-700:hover { background: #1d4ed8; }
-        .hover\:bg-slate-100:hover { background: #e2e8f0; }
-        .hover\:bg-slate-900:hover { background: #111827; }
-        .hover\:bg-slate-50:hover { background: #f8fafc; }
-        .p-1 { padding: .25rem; }
-        .p-4 { padding: 1rem; }
-        .p-6 { padding: 1.5rem; }
-        .p-8 { padding: 2rem; }
-        .p-12 { padding: 3rem; }
-        .px-3 { padding-left: .75rem; padding-right: .75rem; }
-        .px-4 { padding-left: 1rem; padding-right: 1rem; }
-        .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
-        .px-8 { padding-left: 2rem; padding-right: 2rem; }
-        .py-1 { padding-top: .25rem; padding-bottom: .25rem; }
-        .py-2 { padding-top: .5rem; padding-bottom: .5rem; }
-        .py-3 { padding-top: .75rem; padding-bottom: .75rem; }
-        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
-        .py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
-        .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
-        .pl-8 { padding-left: 2rem; }
-        .pr-4 { padding-right: 1rem; }
-        .text-left { text-align: left; }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        .align-top { vertical-align: top; }
-        .text-\[10px\] { font-size: 10px; }
-        .text-xs { font-size: .75rem; }
-        .text-sm { font-size: .875rem; }
-        .text-lg { font-size: 1.125rem; }
-        .text-xl { font-size: 1.25rem; }
-        .text-2xl { font-size: 1.5rem; }
-        .font-medium { font-weight: 500; }
-        .font-semibold { font-weight: 600; }
-        .font-bold { font-weight: 700; }
-        .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-        .uppercase { text-transform: uppercase; }
-        .leading-relaxed { line-height: 1.625; }
-        .tracking-tight, .tracking-tighter { letter-spacing: 0; }
-        .text-white { color: #fff; }
-        .text-slate-300 { color: #cbd5e1; }
-        .text-slate-400 { color: #94a3b8; }
-        .text-slate-500 { color: #64748b; }
-        .text-slate-600 { color: #475569; }
-        .text-slate-700 { color: #334155; }
-        .text-slate-800 { color: #1e293b; }
-        .text-slate-900 { color: #0f172a; }
-        .text-blue-500 { color: #3b82f6; }
-        .text-blue-600 { color: #2563eb; }
-        .text-blue-700 { color: #1d4ed8; }
-        .text-blue-800 { color: #1e40af; }
-        .text-blue-900 { color: #1e3a8a; }
-        .text-green-700 { color: #15803d; }
-        .text-orange-600 { color: #ea580c; }
-        .text-rose-700 { color: #be123c; }
-        .hover\:text-blue-600:hover { color: #2563eb; }
-        .hover\:text-blue-800:hover { color: #1e40af; }
-        .hover\:text-blue-900:hover { color: #1e3a8a; }
-        .hover\:text-slate-600:hover { color: #475569; }
-        .opacity-75 { opacity: .75; }
-        .shadow-sm, .shadow-lg { box-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 10px 24px rgba(15, 23, 42, .04); }
-        .shadow-2xl { box-shadow: 0 24px 60px rgba(15, 23, 42, .28); }
-        .outline-none { outline: none; }
-        .underline, .hover\:underline:hover { text-decoration: underline; }
-        .cursor-pointer { cursor: pointer; }
-        .cursor-wait { cursor: wait; }
-        .transition, .transition-colors { transition: background .18s ease, color .18s ease, opacity .18s ease; }
-        .duration-200 { transition-duration: .2s; }
-        .backdrop-blur-sm { backdrop-filter: blur(6px); }
-        .divide-y > :not([hidden]) ~ :not([hidden]) { border-top: 1px solid #f1f5f9; }
-        .line-clamp-3 {
-            display: -webkit-box;
-            overflow: hidden;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 3;
-        }
-        input, select {
-            min-height: 42px;
-            background: #fff;
-            color: #0f172a;
-        }
-        input:focus, select:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, .16);
-        }
-        button {
-            border: 0;
-            cursor: pointer;
-        }
-        .js-open-modal {
-            background: transparent;
-            color: inherit;
-            font: inherit;
-            padding: 0;
-            text-align: left;
-        }
-        #submitBtn {
-            min-height: 42px;
-        }
-        #submitBtn:disabled {
-            opacity: .72;
-        }
-        th {
-            font-weight: 700;
-        }
-        td, th {
-            border-color: #f1f5f9;
-        }
-        #procedureModal > div {
-            width: min(42rem, 100%);
-        }
-        .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-top-color: #ffffff;
-            border-radius: 50%;
-            width: 1rem;
-            height: 1rem;
-            animation: spin 0.8s linear infinite;
-            display: inline-block;
-            vertical-align: middle;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 720px) {
-            .container { width: min(100% - 1rem, 1180px); }
-            .topbar .flex,
-            .border-b.flex,
-            .border-t.flex {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-            .px-6 { padding-left: 1rem; padding-right: 1rem; }
-            .p-6 { padding: 1rem; }
-            .px-8 { padding-left: 1rem; padding-right: 1rem; }
-            #submitBtn { width: 100%; justify-content: center; }
-        }
-    </style>
+    <title>RNS · Radar OpenSAI</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="bg-slate-50 min-h-screen">
     <nav class="bg-blue-900 text-white p-4 shadow-lg">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold tracking-tight">🔎 SECOP II - Radar TI</h1>
-            <span class="text-sm opacity-75">Colombia Compra Eficiente - Analítica</span>
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">RNS · Radar OpenSAI</h1>
+                <div class="text-sm opacity-75">SECOP II priorizado por encaje, frescura y riesgo</div>
+            </div>
+            <span class="text-xs opacity-75">datos.gov.co · perfil {{ profile_sel|upper }}</span>
         </div>
     </nav>
 
     <main class="container mx-auto py-8 px-4">
         <div class="bg-white rounded-xl shadow-sm p-6 mb-8 border border-slate-200">
-            <h2 class="text-xl font-semibold mb-4 text-slate-800">Parámetros de Búsqueda</h2>
-            <form id="searchForm" action="/search" method="get" class="flex flex-wrap gap-4 items-end">
-                <div class="flex-1 min-w-[180px]">
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Presupuesto Máximo (COP)</label>
+            <h2 class="text-xl font-semibold mb-4 text-slate-800">Parámetros de Priorización</h2>
+            <form id="searchForm" action="/search" method="get" class="search-form search-form--expanded">
+                <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                <input type="hidden" name="sort_dir" value="{{ sort_dir }}">
+
+                <div class="form-field">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Presupuesto mínimo</label>
                     <div class="relative">
                         <span class="absolute left-3 top-2 text-slate-400">$</span>
-                        <input type="number" name="budget" value="{{ budget or 100000000 }}"
-                               class="w-full pl-8 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                               placeholder="Ej: 100000000">
+                        <input type="number" name="min_budget" value="{{ min_budget }}"
+                               class="w-full pl-8 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                 </div>
 
-                <div class="flex-1 min-w-[180px]">
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Departamento</label>
-                    <select name="department" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
-                        {% for option in departments %}
-                        <option value="{{ option.value }}" {% if department_sel == option.value %}selected{% endif %}>{{ option.label }}</option>
+                <div class="form-field">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Presupuesto máximo</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2 text-slate-400">$</span>
+                        <input type="number" name="budget" value="{{ budget }}"
+                               class="w-full pl-8 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Perfil</label>
+                    <select name="profile" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                        {% for option in profiles %}
+                        <option value="{{ option.value }}" {% if profile_sel == option.value %}selected{% endif %}>{{ option.label }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <div class="flex-1 min-w-[180px]">
+                <div class="form-field">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Ventana de publicación</label>
+                    <select name="published_since_days" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                        {% for option in published_windows %}
+                        <option value="{{ option.value }}" {% if published_since_days == option.value %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Departamento</label>
+                    <select name="department" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="Todos" {% if department_sel == 'Todos' %}selected{% endif %}>Todos</option>
+                        {% for option in departments %}
+                        <option value="{{ option }}" {% if department_sel == option %}selected{% endif %}>{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-field">
                     <label class="block text-sm font-medium text-slate-600 mb-1">Estado</label>
                     <select name="process_status" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
                         {% for option in process_statuses %}
@@ -253,17 +79,39 @@
                     </select>
                 </div>
 
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Palabra clave (opcional)</label>
-                    <input type="text" name="keyword" value="{{ keyword or '' }}" maxlength="64"
-                           class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                           placeholder="Ej: kubernetes">
+                <div class="form-field">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Etapa</label>
+                    <select name="phase" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                        {% for option in phases %}
+                        <option value="{{ option.value }}" {% if phase_sel == option.value %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
-                <button id="submitBtn" type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-8 rounded-lg transition duration-200 flex items-center gap-2">
-                    <span id="submitLabel">🔍 Buscar</span>
-                    <span id="submitSpinner" class="spinner hidden"></span>
-                </button>
+                <div class="form-field form-field--keyword">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Palabra clave</label>
+                    <input type="text" name="keyword" value="{{ keyword or '' }}" maxlength="64"
+                           class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                           placeholder="moodle, kvm, accesibilidad, data lake...">
+                </div>
+
+                <div class="form-field form-field--checks">
+                    <label class="check-pill">
+                        <input type="checkbox" name="only_high_fit" value="true" {% if only_high_fit %}checked{% endif %}>
+                        <span>Solo alto encaje</span>
+                    </label>
+                    <label class="check-pill">
+                        <input type="checkbox" name="only_new" value="true" {% if only_new %}checked{% endif %}>
+                        <span>Solo nuevas</span>
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button id="submitBtn" type="submit" class="search-submit bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-8 rounded-lg transition duration-200 flex items-center gap-2">
+                        <span id="submitLabel">Buscar oportunidades</span>
+                        <span id="submitSpinner" class="spinner hidden"></span>
+                    </button>
+                </div>
             </form>
 
             {% if error %}
@@ -276,82 +124,146 @@
         {% if results != None %}
         <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
             <div class="px-6 py-4 bg-slate-100 border-b border-slate-200 flex flex-wrap gap-2 justify-between items-center">
-                <h3 class="font-bold text-slate-700">
-                    Licitaciones Encontradas: {{ pagination.total if pagination else results|length }}
-                </h3>
+                <div>
+                    <h3 class="font-bold text-slate-700">Oportunidades priorizadas: {{ pagination.total if pagination else results|length }}</h3>
+                    <div class="text-xs text-slate-500">Ordenadas por acción disponible, encaje estratégico y frescura.</div>
+                </div>
                 <div class="flex items-center gap-3">
                     {% if pagination and pagination.total > 0 %}
-                    <a href="/search.csv?budget={{ budget }}&department={{ department_sel|urlencode }}&process_status={{ process_status_sel|urlencode }}&keyword={{ keyword|urlencode }}"
+                    <a href="/search.csv?min_budget={{ min_budget }}&budget={{ budget }}&department={{ department_sel|urlencode }}&process_status={{ process_status_sel|urlencode }}&phase={{ phase_sel|urlencode }}&profile={{ profile_sel|urlencode }}&published_since_days={{ published_since_days }}&keyword={{ keyword|urlencode }}&only_high_fit={{ 'true' if only_high_fit else 'false' }}&only_new={{ 'true' if only_new else 'false' }}&sort_by={{ sort_by|urlencode }}&sort_dir={{ sort_dir|urlencode }}"
                        class="text-xs font-semibold text-blue-700 hover:text-blue-900 underline">
-                        ⬇️ Exportar CSV
+                        Exportar CSV enriquecido
                     </a>
                     {% endif %}
-                    <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase">Actualizado</span>
+                    <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase">Prioridad {{ profile_sel }}</span>
                 </div>
             </div>
 
             {% if results %}
+            {% set sort_base_qs = 'min_budget=' ~ min_budget ~ '&budget=' ~ budget ~ '&department=' ~ (department_sel|urlencode) ~ '&process_status=' ~ (process_status_sel|urlencode) ~ '&phase=' ~ (phase_sel|urlencode) ~ '&profile=' ~ (profile_sel|urlencode) ~ '&published_since_days=' ~ published_since_days ~ '&keyword=' ~ (keyword|urlencode) ~ '&only_high_fit=' ~ ('true' if only_high_fit else 'false') ~ '&only_new=' ~ ('true' if only_new else 'false') ~ '&per_page=' ~ pagination.per_page %}
             <div class="overflow-x-auto">
                 <table class="w-full text-left" id="resultsTable">
                     <thead class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold">
                         <tr>
-                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortTable(0)">
-                                Entidad / Referencia <span id="sort-0"></span>
+                            <th class="px-6 py-3 hover:bg-slate-100 transition-colors">
+                                <a class="block" href="/search?{{ sort_base_qs }}&sort_by=match_score&sort_dir={{ 'asc' if sort_by == 'match_score' and sort_dir == 'desc' else 'desc' }}&page=1">
+                                    Encaje{% if sort_by == 'match_score' %} {{ '↓' if sort_dir == 'desc' else '↑' }}{% endif %}
+                                </a>
                             </th>
-                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortTable(1)">
-                                Presupuesto <span id="sort-1"></span>
+                            <th class="px-6 py-3 hover:bg-slate-100 transition-colors">
+                                <a class="block" href="/search?{{ sort_base_qs }}&sort_by=freshness_score&sort_dir={{ 'asc' if sort_by == 'freshness_score' and sort_dir == 'desc' else 'desc' }}&page=1">
+                                    Frescura{% if sort_by == 'freshness_score' %} {{ '↓' if sort_dir == 'desc' else '↑' }}{% endif %}
+                                </a>
                             </th>
-                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortTable(2)">
-                                Procedimiento <span id="sort-2"></span>
+                            <th class="px-6 py-3 hover:bg-slate-100 transition-colors">
+                                <a class="block" href="/search?{{ sort_base_qs }}&sort_by=entity&sort_dir={{ 'asc' if sort_by == 'entity' and sort_dir == 'desc' else 'desc' }}&page=1">
+                                    Entidad{% if sort_by == 'entity' %} {{ '↓' if sort_dir == 'desc' else '↑' }}{% endif %}
+                                </a>
                             </th>
-                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortTable(3)">
-                                Estado <span id="sort-3"></span>
+                            <th class="px-6 py-3 hover:bg-slate-100 transition-colors">
+                                <a class="block" href="/search?{{ sort_base_qs }}&sort_by=base_price&sort_dir={{ 'asc' if sort_by == 'base_price' and sort_dir == 'desc' else 'desc' }}&page=1">
+                                    Presupuesto{% if sort_by == 'base_price' %} {{ '↓' if sort_dir == 'desc' else '↑' }}{% endif %}
+                                </a>
                             </th>
-                            <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortTable(4)">
-                                Fecha de Cierre <span id="sort-4"></span>
+                            <th class="px-6 py-3">Objeto / Razones</th>
+                            <th class="px-6 py-3 hover:bg-slate-100 transition-colors">
+                                <a class="block" href="/search?{{ sort_base_qs }}&sort_by=closing_date&sort_dir={{ 'asc' if sort_by == 'closing_date' and sort_dir == 'desc' else 'desc' }}&page=1">
+                                    Cierre{% if sort_by == 'closing_date' %} {{ '↓' if sort_dir == 'desc' else '↑' }}{% endif %}
+                                </a>
                             </th>
-                            <th class="px-6 py-3 text-right">Acción</th>
+                            <th class="px-6 py-3 text-right hover:bg-slate-100 transition-colors">
+                                <a class="block" href="/search?{{ sort_base_qs }}&sort_by=supplier_action_rank&sort_dir={{ 'desc' if sort_by == 'supplier_action_rank' and sort_dir == 'asc' else 'asc' }}&page=1">
+                                    Acción{% if sort_by == 'supplier_action_rank' %} {{ '↑' if sort_dir == 'asc' else '↓' }}{% endif %}
+                                </a>
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for r in results %}
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="px-6 py-4 align-top">
+                                <div class="score-card">
+                                    <div class="score-card__value">{{ "%.0f"|format(r.match_score) }}</div>
+                                    <div class="score-card__label">{{ r.match_label }}</div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 align-top">
+                                <div class="text-sm font-semibold text-slate-800">Publicado {{ r.publish_date.strftime('%Y-%m-%d') }}</div>
+                                <div class="text-xs text-slate-500">Hace {{ r.days_since_publication or 0 }} días</div>
+                                {% if r.is_new %}
+                                <span class="pill pill--new">Nueva</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 align-top">
                                 <div class="font-bold text-slate-900">{{ r.entity }}</div>
                                 <div class="text-[10px] text-blue-500 font-mono tracking-tighter">{{ r.reference }}</div>
+                                <div class="text-xs text-slate-500 mt-1">{{ r.department or 'Sin departamento' }}</div>
                             </td>
                             <td class="px-6 py-4 text-blue-700 font-bold align-top" data-value="{{ r.base_price }}">
-                                ${{ "{:,.2f}".format(r.base_price) }}
+                                ${{ "{:,.0f}".format(r.base_price) }}
                             </td>
                             <td class="px-6 py-4 text-slate-600 text-sm max-w-md align-top">
                                 <button type="button"
                                         class="line-clamp-3 cursor-pointer hover:text-blue-600 transition-colors js-open-modal"
                                         data-entity="{{ r.entity }}"
-                                        data-price="${{ "{:,.2f}".format(r.base_price) }}"
-                                        data-text="{{ r.name }}"
-                                        data-date="{{ r.closing_date.strftime('%Y-%m-%d') }}">
+                                        data-price="${{ "{:,.0f}".format(r.base_price) }}"
+                                        data-title="{{ r.name }}"
+                                        data-description="{{ r.description }}"
+                                        data-date="{{ r.closing_date.strftime('%Y-%m-%d') if r.closing_date_known else '' }}"
+                                        data-status="{{ r.status }}"
+                                        data-phase="{{ r.phase or '' }}"
+                                        data-modality="{{ r.modality or '' }}"
+                                        data-opening="{{ r.opening_status or '' }}"
+                                        data-action="{{ r.supplier_action_label }}"
+                                        data-action-code="{{ r.supplier_action_code }}"
+                                        data-action-detail="{{ r.supplier_action_detail }}"
+                                        data-score="{{ "%.1f"|format(r.match_score) }}"
+                                        data-fit="{{ r.match_label }}"
+                                        data-reasons="{{ ' | '.join(r.match_reasons) }}"
+                                        data-risks="{{ ' | '.join(r.risk_flags) }}"
+                                        data-last-updated="{{ r.last_updated_date.strftime('%Y-%m-%d') if r.last_updated_date else '' }}"
+                                        data-tipo-contrato="{{ r.tipo_de_contrato or '' }}"
+                                        data-orden="{{ r.ordenentidad or '' }}"
+                                        data-duracion="{{ r.duracion or '' }} {{ r.unidad_de_duracion or '' }}"
+                                        data-unspsc="{{ r.unspsc_code or '' }}"
+                                        data-manifests="{{ r.proveedores_que_manifestaron or '0' }}"
+                                        data-responses="{{ r.respuestas_al_procedimiento or '0' }}"
+                                        data-url="{{ r.url }}">
                                     {{ r.name }}
                                 </button>
-                                <button type="button"
-                                        class="text-xs text-blue-500 font-semibold mt-1 hover:underline js-open-modal"
-                                        data-entity="{{ r.entity }}"
-                                        data-price="${{ "{:,.2f}".format(r.base_price) }}"
-                                        data-text="{{ r.name }}"
-                                        data-date="{{ r.closing_date.strftime('%Y-%m-%d') }}">
-                                    Leer más...
-                                </button>
+                                <div class="mt-2 tag-list">
+                                    {% for reason in r.match_reasons[:3] %}
+                                    <span class="pill pill--reason">{{ reason }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% if r.risk_flags %}
+                                <div class="mt-2 tag-list">
+                                    {% for risk in r.risk_flags[:2] %}
+                                    <span class="pill pill--risk">{{ risk }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
                             </td>
                             <td class="px-6 py-4 align-top whitespace-nowrap">
-                                <span class="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full uppercase">
-                                    {{ r.status }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-orange-600 font-semibold text-sm align-top whitespace-nowrap">
-                                {{ r.closing_date.strftime('%d/%m/%Y') }}
+                                {% if r.closing_date_known %}
+                                <div class="text-orange-600 font-semibold text-sm">{{ r.closing_date.strftime('%d/%m/%Y') }}</div>
+                                {% else %}
+                                <div class="text-slate-500 font-semibold text-sm">Sin fecha</div>
+                                {% endif %}
+                                <div class="text-xs text-slate-500 mt-1">{{ r.phase or 'Sin etapa' }}</div>
+                                {% if r.modality %}
+                                <div class="text-xs text-slate-500 mt-1">{{ r.modality }}</div>
+                                {% endif %}
                             </td>
                             <td class="px-6 py-4 text-right align-top">
+                                <div class="action-stack">
+                                    <span class="pill pill--action pill--action-{{ r.supplier_action_code }}">
+                                        {{ r.supplier_action_label }}
+                                    </span>
+                                    <div class="text-xs text-slate-500 mt-1">{{ r.supplier_action_detail }}</div>
+                                </div>
                                 <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 font-semibold text-sm underline">
-                                    Ver Proceso →
+                                    Ver proceso
                                 </a>
                             </td>
                         </tr>
@@ -366,7 +278,7 @@
                     Página {{ pagination.page }} de {{ pagination.total_pages }} · {{ pagination.total }} resultados
                 </div>
                 <div class="flex gap-2">
-                    {% set base_qs = 'budget=' ~ budget ~ '&department=' ~ (department_sel|urlencode) ~ '&process_status=' ~ (process_status_sel|urlencode) ~ '&keyword=' ~ (keyword|urlencode) ~ '&per_page=' ~ pagination.per_page %}
+                    {% set base_qs = sort_base_qs ~ '&sort_by=' ~ (sort_by|urlencode) ~ '&sort_dir=' ~ (sort_dir|urlencode) %}
                     {% if pagination.has_prev %}
                     <a href="/search?{{ base_qs }}&page={{ pagination.prev_page }}"
                        class="px-3 py-1 rounded border border-slate-300 hover:bg-slate-100 font-medium">← Anterior</a>
@@ -384,7 +296,7 @@
             {% endif %}
 
             <div id="procedureModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
                     <div class="p-6 border-b border-slate-100 flex justify-between items-start">
                         <div>
                             <div class="flex gap-2 items-center mb-1">
@@ -392,94 +304,67 @@
                                 <span class="text-slate-300">|</span>
                                 <span id="modalDate" class="text-xs font-semibold text-slate-400"></span>
                             </div>
-                            <h3 class="text-xl font-bold text-slate-800">Detalles del Procedimiento</h3>
+                            <h3 id="modalTitle" class="text-xl font-bold text-slate-800">Detalles del Procedimiento</h3>
                         </div>
                         <button type="button" class="text-slate-400 hover:text-slate-600 p-1 js-close-modal" aria-label="Cerrar">&times;</button>
                     </div>
-                    <div class="p-8 overflow-y-auto text-slate-600 leading-relaxed text-lg" id="modalBody"></div>
+                    <div class="p-8 overflow-y-auto text-slate-600 leading-relaxed">
+                        <div class="modal-meta">
+                            <span id="modalFit" class="pill pill--reason"></span>
+                            <span id="modalStatus" class="pill"></span>
+                            <span id="modalPhase" class="pill"></span>
+                            <span id="modalAction" class="pill pill--action"></span>
+                        </div>
+                        <div class="modal-block">
+                            <h4 class="text-sm font-bold text-slate-800">Acción recomendada</h4>
+                            <p id="modalActionDetail" class="text-sm"></p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 modal-block">
+                            <div class="p-3 bg-blue-50 rounded-lg">
+                                <h4 class="text-[10px] uppercase font-bold text-blue-600 mb-1">Inteligencia Competitiva</h4>
+                                <div class="text-xs">
+                                    <div class="flex justify-between"><span>Manifestaciones:</span> <span id="modalManifests" class="font-bold"></span></div>
+                                    <div class="flex justify-between"><span>Respuestas:</span> <span id="modalResponses" class="font-bold"></span></div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg">
+                                <h4 class="text-[10px] uppercase font-bold text-slate-500 mb-1">Detalles del Contrato</h4>
+                                <div class="text-xs">
+                                    <div class="flex justify-between"><span>Tipo:</span> <span id="modalContractType" class="font-bold truncate max-w-[80px]"></span></div>
+                                    <div class="flex justify-between"><span>Duración:</span> <span id="modalDuration" class="font-bold"></span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p id="modalDescription" class="modal-block"></p>
+                        
+                        <div class="modal-block text-[10px] text-slate-400">
+                            UNSPSC: <span id="modalUnspsc" class="font-mono"></span> | 
+                            Orden: <span id="modalOrden"></span> | 
+                            Actualizado: <span id="modalUpdated"></span>
+                        </div>
+
+                        <div class="modal-block">
+                            <h4 class="text-sm font-bold text-slate-800">Razones del match</h4>
+                            <p id="modalReasons" class="text-sm"></p>
+                        </div>
+                        <div class="modal-block">
+                            <h4 class="text-sm font-bold text-slate-800">Riesgos / alertas</h4>
+                            <p id="modalRisks" class="text-sm"></p>
+                        </div>
+                    </div>
                     <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
                         <span id="modalPrice" class="text-blue-700 font-bold"></span>
-                        <button type="button" class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-lg font-semibold transition js-close-modal">
-                            Cerrar
-                        </button>
+                        <a id="modalUrl" href="#" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 font-semibold text-sm underline">
+                            Abrir en SECOP
+                        </a>
                     </div>
                 </div>
             </div>
-
-            <script>
-                function openModal(trigger) {
-                    const date = trigger.dataset.date || '';
-                    document.getElementById('modalEntity').innerText = trigger.dataset.entity || '';
-                    document.getElementById('modalPrice').innerText = "Presupuesto: " + (trigger.dataset.price || '');
-                    document.getElementById('modalBody').innerText = trigger.dataset.text || '';
-                    document.getElementById('modalDate').innerText = date ? "Cierre: " + date.split('-').reverse().join('/') : '';
-                    document.getElementById('procedureModal').classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                }
-
-                function closeModal() {
-                    document.getElementById('procedureModal').classList.add('hidden');
-                    document.body.style.overflow = 'auto';
-                }
-
-                document.querySelectorAll('.js-open-modal').forEach(function (trigger) {
-                    trigger.addEventListener('click', function () {
-                        openModal(trigger);
-                    });
-                });
-
-                document.querySelectorAll('.js-close-modal').forEach(function (trigger) {
-                    trigger.addEventListener('click', closeModal);
-                });
-
-                window.addEventListener('click', function(event) {
-                    const modal = document.getElementById('procedureModal');
-                    if (event.target === modal) closeModal();
-                });
-
-                document.addEventListener('keydown', function(event) {
-                    if (event.key === 'Escape') closeModal();
-                });
-
-                let sortDirections = [true, true, true, true, true];
-
-                function sortTable(n) {
-                    const table = document.getElementById("resultsTable");
-                    const rows = Array.from(table.rows).slice(1);
-                    const isNumeric = (n === 1);
-                    const isDate = (n === 4);
-
-                    sortDirections[n] = !sortDirections[n];
-                    const dir = sortDirections[n] ? 1 : -1;
-
-                    [0,1,2,3,4].forEach(i => document.getElementById(`sort-${i}`).innerHTML = "");
-                    document.getElementById(`sort-${n}`).innerHTML = sortDirections[n] ? " ↑" : " ↓";
-
-                    rows.sort((a, b) => {
-                        let x, y;
-                        if (isNumeric) {
-                            x = parseFloat(a.cells[n].getAttribute("data-value")) || 0;
-                            y = parseFloat(b.cells[n].getAttribute("data-value")) || 0;
-                        } else if (isDate) {
-                            x = a.cells[n].innerText.split('/').reverse().join('-');
-                            y = b.cells[n].innerText.split('/').reverse().join('-');
-                        } else {
-                            x = a.cells[n].innerText.toLowerCase();
-                            y = b.cells[n].innerText.toLowerCase();
-                        }
-
-                        if (x < y) return -1 * dir;
-                        if (x > y) return 1 * dir;
-                        return 0;
-                    });
-
-                    const tbody = table.tBodies[0];
-                    rows.forEach(row => tbody.appendChild(row));
-                }
-            </script>
             {% else %}
             <div class="p-12 text-center">
-                <p class="text-slate-400">No se encontraron oportunidades para hoy con estos filtros.</p>
+                <p class="text-slate-400">No se encontraron oportunidades para estos filtros.</p>
             </div>
             {% endif %}
         </div>
@@ -487,10 +372,60 @@
     </main>
 
     <footer class="mt-auto py-6 text-center text-slate-400 text-xs">
-        &copy; 2026 OpenSAI - Radar TI SECOP II. Datos proporcionados por datos.gov.co
+        &copy; 2026 OpenSAI · RNS. Prioriza oportunidades usando datos públicos de SECOP II.
     </footer>
 
     <script>
+        function openModal(trigger) {
+            const date = trigger.dataset.date || 'Sin fecha visible en dataset';
+            document.getElementById('modalEntity').innerText = trigger.dataset.entity || '';
+            document.getElementById('modalPrice').innerText = "Presupuesto: " + (trigger.dataset.price || '');
+            document.getElementById('modalTitle').innerText = trigger.dataset.title || 'Detalles del procedimiento';
+            document.getElementById('modalDescription').innerText = trigger.dataset.description || trigger.dataset.title || '';
+            document.getElementById('modalDate').innerText = "Cierre: " + date;
+            document.getElementById('modalFit').innerText = (trigger.dataset.fit || '') + " · Score " + (trigger.dataset.score || '');
+            document.getElementById('modalStatus').innerText = trigger.dataset.status || 'Sin estado';
+            document.getElementById('modalPhase').innerText = trigger.dataset.phase || trigger.dataset.modality || 'Sin etapa';
+            document.getElementById('modalAction').innerText = trigger.dataset.action || 'Revisar manualmente';
+            document.getElementById('modalActionDetail').innerText = trigger.dataset.actionDetail || 'Validar en SECOP II antes de actuar.';
+            document.getElementById('modalReasons').innerText = trigger.dataset.reasons || 'Sin razones calculadas';
+            document.getElementById('modalRisks').innerText = trigger.dataset.risks || 'Sin riesgos detectados';
+            document.getElementById('modalManifests').innerText = trigger.dataset.manifests || '0';
+            document.getElementById('modalResponses').innerText = trigger.dataset.responses || '0';
+            document.getElementById('modalContractType').innerText = trigger.dataset.tipoContrato || 'N/A';
+            document.getElementById('modalDuration').innerText = trigger.dataset.duracion || 'N/A';
+            document.getElementById('modalUnspsc').innerText = trigger.dataset.unspsc || 'N/A';
+            document.getElementById('modalOrden').innerText = trigger.dataset.orden || 'N/A';
+            document.getElementById('modalUpdated').innerText = trigger.dataset.lastUpdated || 'No reportada';
+            document.getElementById('modalUrl').href = trigger.dataset.url || '#';
+            document.getElementById('procedureModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('procedureModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        document.querySelectorAll('.js-open-modal').forEach(function (trigger) {
+            trigger.addEventListener('click', function () {
+                openModal(trigger);
+            });
+        });
+
+        document.querySelectorAll('.js-close-modal').forEach(function (trigger) {
+            trigger.addEventListener('click', closeModal);
+        });
+
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('procedureModal');
+            if (event.target === modal) closeModal();
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') closeModal();
+        });
+
         (function () {
             const form = document.getElementById('searchForm');
             const btn = document.getElementById('submitBtn');
@@ -500,7 +435,7 @@
             form.addEventListener('submit', function () {
                 btn.disabled = true;
                 btn.classList.add('opacity-75', 'cursor-wait');
-                label.innerText = 'Buscando…';
+                label.innerText = 'Priorizando…';
                 spinner.classList.remove('hidden');
             });
         })();

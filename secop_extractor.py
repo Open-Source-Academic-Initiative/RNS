@@ -1,17 +1,27 @@
 import asyncio
+import os
 from typing import Optional
 
 from src.infrastructure.repositories import SocrataTenderRepository
 
 DEFAULT_BUDGET = 100000000
-DEFAULT_LIMIT = 1000
+DEFAULT_MIN_BUDGET = 0
+DEFAULT_LIMIT = 10000
+# Set RNS_ALLOW_SIMULATED=1 to opt into the canned demo payload when Socrata is
+# unreachable. Disabled by default so an empty Socrata response is never silently
+# replaced with a fixture row that could be confused with real procurement data.
+ALLOW_SIMULATED_FALLBACK = os.getenv("RNS_ALLOW_SIMULATED", "").strip() == "1"
 SIMULATED_RAW_DATA = [
     {
-        "entidad": "TEST MINISTRY",
+        "entidad": "TEST MINISTRY (SIMULATED)",
         "precio_base": "85000000",
-        "nombre_del_procedimiento": "Custom Software Development",
-        "descripci_n_del_procedimiento": "Management RESTful API",
+        "nombre_del_procedimiento": "Custom Software Development [SIMULATED]",
+        "descripci_n_del_procedimiento": "Management RESTful API [SIMULATED]",
         "urlproceso": "https://secop.gov.co/simulated",
+        "modalidad_de_contratacion": "Menor cuantía",
+        "fase": "Presentación de oferta",
+        "estado_del_procedimiento": "Publicado",
+        "estado_de_apertura_del_proceso": "Abierto",
     }
 ]
 
@@ -27,16 +37,22 @@ class SecopExtractor:
     async def fetch_data(
         self,
         max_budget: float = DEFAULT_BUDGET,
+        min_budget: float = DEFAULT_MIN_BUDGET,
         department: Optional[str] = None,
         limit: int = DEFAULT_LIMIT,
         process_status: Optional[str] = None,
+        phase: Optional[str] = None,
+        published_since_days: int = 60,
     ):
         """Fetches raw records using the shared repository query logic."""
         return await self.repository.fetch_raw_records(
+            min_budget=min_budget,
             max_budget=max_budget,
             department=department,
             process_status=process_status,
+            phase=phase,
             limit=limit,
+            published_since_days=published_since_days,
         )
 
     def process_data(self, raw_data):
@@ -50,9 +66,13 @@ class SecopExtractor:
                 "base_price": tender.base_price,
                 "name": tender.name,
                 "status": tender.status,
+                "action": tender.supplier_action_label,
+                "action_detail": tender.supplier_action_detail,
+                "score": tender.match_score,
+                "fit": tender.match_label,
                 "url": tender.url,
             }
-            for tender in sorted(tenders, key=lambda item: item.base_price, reverse=True)
+            for tender in tenders
         ]
 
     async def aclose(self) -> None:
@@ -70,6 +90,8 @@ def _print_results(results):
         print(f"ENTITY: {result['entity']}")
         print(f"PRICE:  ${result['base_price']:,.2f} COP")
         print(f"STATUS: {result['status']}")
+        print(f"ACTION: {result['action']}")
+        print(f"FIT:    {result['fit']} ({result['score']:.1f})")
         print(f"NAME:   {result['name']}")
         print(f"URL:    {result['url']}")
         print("-" * 80)
@@ -82,8 +104,18 @@ async def _run() -> None:
         raw_records = await extractor.fetch_data()
 
         if not raw_records:
-            print("\n--- Simulation Mode (Connection Failure Detected) ---")
-            raw_records = SIMULATED_RAW_DATA
+            if ALLOW_SIMULATED_FALLBACK:
+                print(
+                    "\n--- SIMULATION MODE: Socrata returned no records. "
+                    "Output below is a hard-coded fixture, not real data. ---"
+                )
+                raw_records = SIMULATED_RAW_DATA
+            else:
+                print(
+                    "\nNo records returned by Socrata. Set RNS_ALLOW_SIMULATED=1 "
+                    "to fall back to the canned demo payload."
+                )
+                return
 
         _print_results(extractor.process_data(raw_records))
     finally:
